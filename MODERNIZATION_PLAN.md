@@ -1,10 +1,21 @@
-# TOMA Modernization Work Plan
+# TOMA Modernization Work Plan (v2)
 
-**Scope:** Full refactor of the TOMA/COMA training-management client (this repo) plus the API contract it depends on.
+**Scope:** Full rewrite of the TOMA/COMA training-management system UI + API layer, **on top of the existing database schema** and the existing on-premises company infrastructure.
 **Goal:** A modern, secure, maintainable web app for HR course management, manager-driven registration, employee self-registration, and training analytics.
-**Status:** Planning document — no implementation yet.
+**Status:** Planning document — implementation follows the task list in §6.
 
-> **Repo reality check:** this repository (`TOMA_Server`) contains only the **Angular 6 frontend** ("COMA Client") plus a vendored fork of `ngx-wig`. The backend (Node/Express-style REST endpoints on port 8080) lives elsewhere. Several critical problems found below (authentication, authorization, data model) **cannot be fixed in the frontend alone** — the plan therefore includes a backend/API workstream that must be coordinated with the team that owns the server.
+**Binding constraints (from product owner):**
+
+1. **Rewrite in React** (agreed — rationale in §2.1). Same database; new fields handled additively with approved migrations. Same on-prem environment infrastructure (Docker on company servers, internal network, no cloud services).
+2. **Five roles:** Admin, Developer, HR, Manager, Employee (matrix in §2.4).
+3. **Recurring courses become first-class** — today each yearly run is an unrelated course row distinguished only by a `"Name #N YYYY"` naming convention.
+4. **Managers see full multi-year training history** of their employees; registering an employee checks prior participation in the same course (re-registration allowed but must be visible).
+5. **Automatic registration notification emails** to relevant managers; **HR-configurable rules** (per course or global; recipients by manager title, department, etc.).
+6. **Any DB change ships as a migration script**, including automatic identification of recurring courses, tested on a mockup database, and **requires Admin approval before running on production**.
+7. **Mail/calendar is on-prem Exchange + Outlook** — integration via SMTP relay + iCalendar and/or EWS. No cloud APIs (no Microsoft Graph).
+8. **No calendar schedule** — the work is expressed as a dependency-ordered task list (§6), to be executed by Claude.
+
+> **Repo reality check:** this repository contains only the Angular 6 frontend ("COMA Client"). The backend is a separate Node service exposing ~40 verb-style endpoints. Because the auth and data-model problems live in the API layer, the rewrite includes a new backend API **over the existing database** (§2.2–2.3).
 
 ---
 
@@ -13,10 +24,11 @@
 1. [Current State Assessment](#1-current-state-assessment)
 2. [Part 1 — Target Technical Spec & Architecture](#2-part-1--target-technical-spec--architecture)
 3. [Part 2 — Bug & Security Audit of the Current Code](#3-part-2--bug--security-audit)
-4. [Part 3 — New Features & Enhancements](#4-part-3--new-features--enhancements)
-5. [Part 4 — Phased Work Plan](#5-part-4--phased-work-plan)
-6. [Risks & Mitigations](#6-risks--mitigations)
-7. [Open Questions for Stakeholders](#7-open-questions-for-stakeholders)
+4. [Part 3 — Database Strategy & Migration Plan](#4-part-3--database-strategy--migration-plan)
+5. [Part 4 — New Features & Enhancements](#5-part-4--new-features--enhancements)
+6. [Part 5 — Task List](#6-part-5--task-list)
+7. [Risks & Mitigations](#7-risks--mitigations)
+8. [Open Questions / Required Inputs](#8-open-questions--required-inputs)
 
 ---
 
@@ -27,7 +39,7 @@
 | Framework | Angular 6.1 (2018, EOL), TypeScript 2.9, RxJS 6.2 | 14 major versions behind; no security patches; can't hire for it |
 | HTTP | `@angular/http` (removed from Angular in v8) **and** `HttpClientModule` mixed | Deprecated API, duplicated stacks, `res.json()`/`res.text()` string parsing everywhere |
 | Auth | Client-side only: `localStorage` flag + AES with a **hardcoded key in the bundle** | Trivially bypassable; see S-1/S-2/S-3 below |
-| Data model | Courses identified by `"Name #N YYYY"` strings; year parsed by `slice(0, -5)` | Fragile string surgery in ~30 places; renames/collisions corrupt views |
+| Data model | Courses identified by `"Name #N YYYY"` strings; year parsed by `slice(0, -5)` | Fragile string surgery in ~30 places; renames/collisions corrupt views; recurring courses are unrelated rows |
 | State | Mutable arrays on singleton services + manual `Subject.next()` | Race conditions, presentation styles stored on data objects |
 | UI | Angular Material 6 + ng-bootstrap 3 + hand-rolled CSS, status conveyed by baby/old-man icons and red outlines | Dated, inconsistent, inaccessible, not responsive |
 | Dates | moment.js (deprecated), locale-dependent `toLocaleDateString()` comparisons | Correctness bugs, bundle weight |
@@ -36,156 +48,235 @@
 | Build/Deploy | Docker build **disables TLS verification globally**; Apache httpd with no SPA fallback | Supply-chain risk; deep-link refresh 404s |
 | Backend API | ~40 verb-style endpoints (`addUserToCourse/:ID`, `getCourseExists/:name/:year`), plain HTTP, unauthenticated | No resource model, no pagination, no authz |
 
-**Verdict:** an in-place upgrade (6→7→…→20) is not worth it for ~7k LOC of frontend code with no tests. A **contract-first parallel rebuild** is faster, safer, and lets the legacy app keep running until cutover.
+**Verdict:** in-place upgrade is not worth it for ~7k LOC with no tests. **Rewrite the client in React and the API layer in TypeScript over the existing database**, run in parallel with the legacy app, then cut over.
 
 ---
 
 ## 2. Part 1 — Target Technical Spec & Architecture
 
-### 2.1 Stack recommendation
+### 2.1 Why React (agreed) and the exact stack
 
-**Recommended: Angular 20 LTS rebuild** (keeps the team's Angular knowledge, mature enterprise ecosystem). React 19 + Vite is a viable alternative if the team prefers a reset, but nothing in this product requires leaving Angular, and the migration cost is lower staying.
+React is the right call here, for reasons beyond preference:
+
+- **A rewrite erases Angular's only advantage** — team familiarity with *this* codebase. Since nothing is being ported, the migration-cost argument for staying on Angular disappears.
+- **Hiring/longevity:** React's talent pool and ecosystem are the largest by far; for an internal system maintained for years by a small team, that matters more than framework taste.
+- **Fit:** this is a data-heavy CRUD + dashboards app. React + TanStack Query is the most well-trodden path for exactly this shape of app; less framework ceremony than Angular DI/modules.
+- **Incremental simplicity:** plain Vite SPA — no SSR needed for an internal tool behind the firewall, so no Next.js complexity.
+
+One honest caveat: Angular's all-in-one structure enforces consistency on junior teams, while React requires choosing libraries. The stack below removes that ambiguity by fixing every choice up front.
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Framework | **Angular 20 (LTS)**, standalone components, signals, built-in control flow (`@if/@for`), zoneless-ready | No NgModules; typed reactive forms |
-| Language/tooling | TypeScript 5.x `strict: true`, ESLint + `angular-eslint` + Prettier | tslint is dead; enforce in CI |
-| UI kit | **Angular Material 3** (M3 design tokens) + Angular CDK | One UI library — drop ng-bootstrap/ngf-bootstrap entirely |
-| Data fetching | **TanStack Query for Angular** (`@tanstack/angular-query`) or lightweight signal stores per feature | Caching, retries, invalidation, optimistic updates; avoids full NgRx ceremony |
-| API client | **OpenAPI 3.1 contract → generated TS client** (openapi-generator or orval) | Single source of truth; kills hand-built URL strings |
-| Auth | **OIDC / corporate SSO** (Entra ID / Okta / Keycloak) via `angular-auth-oidc-client`; JWT in interceptor | No passwords in this app at all |
-| Dates | **date-fns v4** (with `@date-fns/tz`) or Luxon | Replace moment.js; all comparisons on ISO instants, never locale strings |
-| Charts | **Chart.js 4** via `ng2-charts` v6 (or ngx-echarts if dashboards grow) | Follow a single dataviz style guide |
-| Tables/grids | Angular Material table + CDK virtual scroll; **AG Grid Community** for the heavy HR admin grids | Sorting/filtering/pinning/export out of the box |
-| Calendar | **FullCalendar** for course/session calendar views | |
-| Rich text | **TipTap** (or Quill 2) replacing the vendored ngx-wig fork; sanitize with DOMPurify + server-side sanitization | Removes an unmaintained fork from the repo |
-| Excel/exports | **exceljs** client-side for small exports; server-generated files for big reports | Retire `xlsx@0.15`; escape cell values (formula-injection) |
-| Unit tests | **Vitest** (or Jest) with Angular Testing Library | Karma is deprecated |
-| E2E tests | **Playwright** | Protractor is discontinued |
-| Component workshop | Storybook (optional, phase 2+) | Design-system documentation |
-| Error tracking | Sentry (self-hosted GlitchTip if data must stay on-prem) | Replaces silent `console.log` failure handling |
+| Build | **Vite + React 19 + TypeScript 5 (`strict`)** | Plain SPA; no SSR needed on the internal network |
+| Routing | **React Router v7** (library mode) | Boring and well-known; role-guarded route tree |
+| Server state | **TanStack Query v5** | Caching, invalidation, optimistic updates, retries |
+| Local state | React state + **Zustand** only where genuinely global (auth/session, UI prefs) | No Redux ceremony |
+| UI kit | **MUI (Material UI) v7** + MUI X DataGrid | Closest continuity with the current Material look; enterprise tables, date pickers included |
+| Forms | **react-hook-form + zod** | Zod schemas shared with the API layer for end-to-end validation |
+| Dates | **date-fns v4** | All logic on ISO instants; never locale-string comparisons |
+| Charts | **Recharts** (or Chart.js 4 if pixel-parity with old charts is wanted) | Single dataviz style guide |
+| Calendar | **FullCalendar (React)** | Catalog calendar view + personal schedule |
+| Rich text | **TipTap** + DOMPurify (client) + server-side sanitization | Retires the vendored ngx-wig fork |
+| Excel export | Server-generated via **exceljs**; injection-safe cell escaping | Retires `xlsx@0.15` |
+| i18n | **i18next** (RTL-ready if Hebrew UI is wanted) | |
+| API client | **OpenAPI-generated TS client** (orval) + MSW mocks for dev/tests | Contract-first |
+| Tests | **Vitest + React Testing Library + MSW**, **Playwright** e2e | |
+| Lint/format | ESLint (typescript-eslint) + Prettier, enforced in CI | |
 
-### 2.2 API redesign (contract-first, backend workstream)
+**Backend (rewritten API layer over the existing DB):**
 
-Replace verb-style endpoints with a resource-oriented REST API, `/api/v1`, JSON, `application/problem+json` errors, cursor/offset pagination, server-side filtering & sorting.
+| Layer | Choice | Notes |
+|---|---|---|
+| Runtime | **Node.js 22 LTS + NestJS (TypeScript)** | Same runtime family as the existing server → same infra; NestJS gives structure, guards, OpenAPI generation |
+| DB access | **Prisma** with schema **introspected from the existing database** (`prisma db pull`) | Guarantees we build on the schema as-is; migrations authored separately (§4) |
+| API docs | OpenAPI 3.1 generated from Nest decorators + zod DTOs | Feeds the frontend client generator |
+| Mail | **nodemailer → on-prem Exchange SMTP relay**; iCalendar (RFC 5545) MIME parts for Outlook meeting invites | §2.6 |
+| Jobs | **BullMQ + Redis** (or node-cron if Redis is not allowed on the servers) | Reminder emails, notification queue, HRIS sync |
+| Logging/audit | pino structured logs + `audit_log` table | |
 
-**Core resources:**
+### 2.2 API design (contract-first, over the existing DB)
+
+Resource-oriented REST, `/api/v1`, JSON, `application/problem+json` errors, pagination and filtering server-side. Verb-style endpoints and name-encoded identity (`getCourse/:name`) are retired; the API speaks in **stable IDs** even while the underlying tables still key some data by name (the mapping happens once, in the data layer, instead of in 30 client call-sites).
 
 ```
-POST   /auth (delegated to SSO — no custom login endpoint)
-GET    /employees?query=&managerId=&page=            (paginated, filtered server-side)
-GET    /employees/{id}
-GET    /employees/{id}/registrations?year=
-GET    /employees/{id}/reports/hours?year=
-GET    /managers/{id}/team?depth=all                 (org subtree resolved server-side)
+POST   /auth/login | /auth/logout | GET /auth/me        (AD-backed, §2.5)
 
-GET    /courses?year=&status=&type=&q=&page=
-POST   /courses
-GET    /courses/{id}                                 (numeric surrogate ID — NOT the name)
+GET    /employees?query=&managerId=&department=&page=
+GET    /employees/{id}                                   (field visibility per role, §2.4)
+GET    /employees/{id}/history                           (ALL years: registrations + attendance, grouped by series)
+GET    /managers/{id}/team?depth=all
+
+GET    /course-series?q=&type=&page=                     (recurring course = series, §4.2)
+GET    /course-series/{id}                               (all runs across years, aggregate stats)
+POST   /course-series/{id}:schedule-next-run
+
+GET    /courses?year=&status=&type=&seriesId=&q=&page=
+POST   /courses                                          (HR; Manager creates with status=requested)
+GET    /courses/{id}
 PATCH  /courses/{id}
 DELETE /courses/{id}
 POST   /courses/{id}:duplicate
-GET    /courses/{id}/sessions
-POST   /courses/{id}/sessions
+GET    /courses/{id}/sessions        POST /courses/{id}/sessions
 GET    /courses/{id}/registrations
-POST   /courses/{id}/registrations                   {employeeId, source: hr|manager|self}
-PATCH  /registrations/{id}                           {status: registered|waitlisted|cancelled|approved…}
-PUT    /sessions/{id}/attendance/{employeeId}        {present: bool}
-POST   /courses/{id}/invitations                     (email + .ics)
+POST   /courses/{id}/registrations                       {employeeId, source: hr|manager|self}
+       → response includes priorParticipations[] for the same series (re-registration visibility)
+GET    /courses/{id}/registrations/precheck?employeeIds=  (bulk duplicate/conflict check before committing)
+PATCH  /registrations/{id}                               (approve | decline | cancel | waitlist ops)
+PUT    /sessions/{id}/attendance/{employeeId}            {present: bool}
+POST   /courses/{id}/invitations                         (email + .ics meeting request)
+
+GET/POST/PATCH/DELETE /notification-rules                (HR-managed, §2.7)
+GET    /notification-log?courseId=&recipientId=&page=
 
 GET    /reports/hours?year=&granularity=month&managerId=
-GET    /reports/budget?year=
+GET    /reports/budget?year=                             (HR only — hidden from Admin)
+GET    /reports/compliance?year=
 GET/PUT /settings/budget/{year} , /settings/target-hours/{year}
-GET    /audit-log?entity=&page=
+
+GET    /admin/audit-log?entity=&actor=&page=             (Admin/Developer)
+GET    /admin/db/health                                  (Admin: orphan rows, name-convention violations, integrity checks)
+POST   /admin/migrations/{id}:approve                    (Admin approval gate, §4.4)
+GET    /admin/migrations                                 (status, reports, dry-run results)
 ```
 
-**Key contract rules:**
-- Every entity has a **stable numeric/UUID id**. Course "identity by name + year suffix" is abolished; `code`/`title`/`year` become plain attributes. Course-family/duplication is modeled with a `templateId`/`seriesId` instead of the `#N` suffix convention.
-- All authorization enforced **server-side** from JWT claims. The client only uses roles to hide UI.
-- Aggregations (hours per month, per-manager rollups, org subtree) computed server-side — the current client fetches every user of every course individually (N+1 over HTTP).
+All aggregation (hours/month, org subtrees, series stats) is computed server-side — the current client does N+1 HTTP joins per course participant.
 
-### 2.3 Data model redesign
+### 2.3 Domain model (logical — physical mapping in §4)
 
 ```
-Employee        (id, firstName, lastName, email, managerId, category, status,
-                 startDate, endDate, avatarUrl)          ← synced from HRIS, read-only here
-Course          (id, code, title, descriptionHtml, notes, mailText, type: technical|enrichment|conference,
-                 status: draft|tentative|scheduled|completed|cancelled|archived,
-                 isMandatory, isInternal, price, capacity?, year, ownerId,
-                 selfRegistration: none|open|approval_required, tags[])
-CourseSession   (id, courseId, startsAt, endsAt, venue, lecturer)
-Registration    (id, courseId, employeeId, status: invited|pending_approval|registered|
-                 waitlisted|declined|cancelled, source: hr|manager|self,
-                 requestedBy, approvedBy?, createdAt, updatedAt)
-Attendance      (id, sessionId, employeeId, present, markedById, markedAt)
-BudgetYear      (year, amount)   /  TargetHoursYear (year, hours)
-NotificationLog (id, type, recipientId, courseId?, sentAt, channel)
-AuditLog        (id, actorId, action, entityType, entityId, before/after, at)
+Employee        id, firstName, lastName, email, managerId, department, title,
+                category, status, startDate, endDate            ← existing tables, read-mostly
+CourseSeries    id, canonicalName, type, description, tags[]    ← NEW (recurring-course identity)
+Course (run)    id, seriesId, title, year, descriptionHtml, notes, mailText,
+                type: technical|enrichment|conference,
+                status: requested|tentative|scheduled|completed|cancelled|archived,
+                isMandatory, isInternal, price, capacity?,
+                selfRegistration: none|open|approval_required, ownerId
+CourseSession   id, courseId, startsAt, endsAt, venue, lecturer
+Registration    id, courseId, employeeId, status: invited|pending_approval|registered|
+                waitlisted|declined|cancelled, source: hr|manager|self,
+                requestedBy, approvedBy?, timestamps
+Attendance      sessionId, employeeId, present, markedById, markedAt
+NotificationRule id, scope: global|series|course, event, recipientSelectors[], enabled  (§2.7)
+NotificationLog id, ruleId?, type, recipient, courseId?, sentAt, status, error?
+BudgetYear      year, amount        TargetHoursYear  year, hours
+AuditLog        id, actorId, role, action, entityType, entityId, before, after, at
+Role/UserRole   role assignment per user                        ← NEW (5-role model)
 ```
 
-This directly removes today's classes of bugs: string-suffix parsing, client-side joins, "attended" inferred from a separate name list, tentative courses encoded as a boolean + fake 13:00–14:00 session.
+### 2.4 Roles & permission matrix (5 roles, server-enforced)
 
-### 2.4 AuthN / AuthZ
+Roles are held in a new `user_role` table (the existing `authorizationIdCOMA` column is preserved and mapped during migration: `All→HR`, `PM→Manager`, `None→Employee`). Enforcement is server-side per endpoint **and per field** — role-based DTO serialization decides which fields leave the server (e.g., budget/price fields stripped for Admin and Manager responses), so "hidden fields" can't be recovered from the network tab.
 
-- **Authentication:** OIDC Authorization Code + PKCE against corporate IdP. No password field anywhere in this codebase. Sessions via short-lived access tokens + silent refresh.
-- **Authorization (server-enforced RBAC):**
-  - `HR_ADMIN` — full CRUD, budgets, targets, reports, settings (today's "All").
-  - `MANAGER` — sees own subtree, registers/deregisters own reports, proposes (tentative) courses, approves self-registrations of reports (today's "PM", but enforced server-side).
-  - `EMPLOYEE` — sees catalog, own history/hours, self-registers where allowed. (New — today employees have no persona.)
-- Route guards remain purely cosmetic; every API call re-checks on the server.
+| Capability | Admin | Developer | HR | Manager | Employee |
+|---|:--:|:--:|:--:|:--:|:--:|
+| System/infra dashboards, DB health & repair tools | ✅ | ✅ (mock DB) | — | — | — |
+| Approve & run DB migrations (production) | ✅ | dry-run only | — | — | — |
+| Manage user roles | ✅ | — | — | — | — |
+| View audit log | ✅ | ✅ | own-entity events | — | — |
+| **Budget & cost data (amounts, prices, budget reports)** | 🚫 hidden | ✅ (mock/test data) | ✅ | 🚫 hidden | 🚫 hidden |
+| Create / edit / delete courses & series | 🔧 repair-mode only | ✅ (testing) | ✅ | request/suggest only | — |
+| Approve manager course requests | — | ✅ (testing) | ✅ | — | — |
+| Register anyone to a course | — | ✅ (testing) | ✅ | own reports only | self only |
+| View employee list & profiles | ✅ (sensitive fields hidden) | ✅ | ✅ full | own subtree, some fields hidden | self only |
+| View multi-year training history | ✅ | ✅ | ✅ all | ✅ own reports (all years) | ✅ self |
+| Mark attendance | 🔧 repair | ✅ | ✅ | own reports' courses | — |
+| Configure notification rules | — | ✅ (testing) | ✅ | — | — |
+| Reports & dashboards | infra only | ✅ | ✅ all | team-scoped | self-scoped |
+| Self-register to open courses | — | ✅ | ✅ | ✅ | ✅ (where allowed) |
 
-### 2.5 Frontend architecture
+Notes:
+- **Admin** is an *operator* role: full schema/infra access (DB health console, integrity repair, migration approvals, role management) but business-sensitive fields (budgets, prices) are masked in both UI and API responses. Direct DB access stays possible at the DB tier — the app-level hiding is a policy statement, not a technical wall, and is documented as such.
+- **Developer** gets every feature enabled but is bound to **non-production environments / the mockup database**. Implementation: environment-scoped role — the production deployment refuses Developer-role logins (config flag), while staging/dev accept them. A visible environment banner (color-coded) prevents "which DB am I on?" accidents.
+- **Manager** course suggestions reuse the tentative-course concept: a Manager `POST /courses` creates `status=requested`; HR reviews in an approvals inbox and promotes to `tentative`/`scheduled`.
+
+### 2.5 Authentication (on-prem)
+
+No cloud IdP is available, so in order of preference:
+
+1. **ADFS (on-prem) via OIDC** if the company runs it — standard SSO, no passwords touch our app.
+2. Otherwise **direct LDAP/AD bind** from the API: user submits AD credentials to `/auth/login` over TLS, API binds against the domain controller, then issues an **httpOnly, Secure, SameSite session cookie** (server-side session store). No JWT-in-localStorage, no crypto in the browser.
+3. Optional later: Kerberos/IWA (Negotiate) for silent intranet SSO.
+
+Either way: the current scheme (client-side AES with a bundled key + a localStorage flag) is deleted entirely, and **every** API route enforces authn + role authz middleware.
+
+### 2.6 Exchange / Outlook integration (on-prem)
+
+- **Email sending:** nodemailer → the on-prem Exchange **SMTP relay** (submission endpoint, TLS, service account). All notification mail goes through one queued mailer with retry + `notification_log`.
+- **Calendar invites:** RFC 5545 iCalendar MIME parts (`method=REQUEST`) attached to invite mails — Outlook renders these as real meeting requests with Accept/Decline. Session changes send `SEQUENCE`-incremented updates; cancellations send `method=CANCEL`. This covers invites/updates/cancellations **without any Exchange API dependency**.
+- **Optional EWS layer** (phase-later task): a service account using Exchange Web Services (SOAP) enables organizer-owned meetings, attendee tracking, and free/busy lookups when scheduling sessions. Kept optional because EWS auth (NTLM/Basic) and library support (`ews-javascript-api`) are heavier; SMTP+iCal delivers 90% of the value.
+- **Reminders:** queued jobs (N days before session) send reminder mail per notification rules.
+
+### 2.7 Notification rules engine (HR-configurable)
 
 ```
-src/app/
-  core/        auth (oidc), api (generated client), interceptors, error-handler, config
-  shared/      ui components (page-shell, data-table, status-chip, empty-state, confirm),
-               pipes, utils, design tokens
+NotificationRule {
+  id, name, enabled,
+  scope:   global | series(seriesId) | course(courseId),
+  event:   registration_created | self_registration_requested | registration_cancelled |
+           registration_approved | waitlist_promoted | course_requested |
+           session_reminder(offsetDays) | attendance_missing,
+  recipientSelectors: [                     // union, deduplicated at send time
+    { kind: direct_manager }                // manager of the affected employee
+    { kind: manager_title,  title: "..." }  // e.g., all "Group Leader"s
+    { kind: department,     dept:  "..." }  // managers/members of a department
+    { kind: hr }                            // all HR-role users
+    { kind: course_owner }
+    { kind: employee }                      // the affected employee
+    { kind: custom_emails,  emails: [...] }
+  ],
+  templateId, createdBy, updatedAt
+}
+```
+
+- **Defaults shipped:** `registration_created → direct_manager + hr` (satisfies requirement #5 out of the box), `self_registration_requested → direct_manager`, `waitlist_promoted → employee`.
+- **HR UI:** rules table + editor with recipient-selector chips, per-course override panel on the course page ("this course notifies: …"), live preview ("this rule currently resolves to 14 recipients"), test-send button, and the send log.
+- Evaluation happens in the API on domain events; sends are queued, logged, deduplicated per (event, recipient).
+
+### 2.8 Frontend architecture & UX
+
+```
+src/
+  app/            router, providers, role guards, env banner
+  api/            generated client + query hooks (TanStack Query)
+  auth/           session store, login page, role helpers
+  ui/             design system: PageShell, DataTable, StatusChip, EmptyState,
+                  ConfirmUndo, FieldMasked, charts theme
   features/
-    dashboard/          role-aware home
-    catalog/            course catalog: table + card + calendar views, filters
-    course/             detail (tabs: overview, sessions, participants, attendance, comms)
-    course-editor/      create/edit wizard, tentative flow, duplication
-    employees/          directory, employee profile, team view
-    registrations/      approvals inbox, waitlists
-    reports/            hours, budget, compliance + exports
-    admin/              budgets, targets, settings, audit log
+    dashboard/    role-aware home (HR ops / manager team / employee "my learning" / admin infra)
+    catalog/      series-grouped catalog: table + cards + calendar; faceted filters; ⌘K search
+    series/       series page: all runs across years, stats, "schedule next run"
+    course/       detail tabs: overview | sessions | participants | attendance | notifications
+    course-editor/ wizard: details → sessions (hour-level conflict check) → participants → review & notify
+    employees/    directory (server-side pagination), profile with FULL multi-year history timeline
+    registrations/ approvals inbox (HR + managers), waitlists, duplicate-participation warnings
+    reports/      hours, budget (HR), compliance; exports
+    notifications/ HR rules management + send log
+    admin/        role management, audit log, DB health, migration review & approval
 ```
 
-- **State:** server state via TanStack Query (cache keys per resource, invalidation on mutation, optimistic add/remove participant); local UI state via signals. No mutable shared arrays, no `Subject` bus, no `style` objects written onto model instances.
-- **Forms:** typed reactive forms; draft autosave **keyed by course id** (fixes cross-course recovery bug), with explicit "restore draft?" affordance.
-- **Error handling:** central interceptor → problem+json → toast + Sentry; no silent failures.
-- **Performance:** route-level code splitting, virtual scrolling on big lists, `OnPush`/signals everywhere.
+UX specifics carried over from v1 of this plan and extended:
 
-### 2.6 UI/UX design
+1. **Series-first catalog** — recurring courses appear once, expandable to runs; per-run status chips (Requested / Tentative / Scheduled / In progress / Completed / Needs attendance) replace the baby/old-man/exclamation icon system.
+2. **Registration with history visibility (req. #4):** when a manager picks an employee for a course, the picker row shows prior participations of the same series inline ("✔ attended 2023 · registered 2021"); committing a re-registration requires an explicit "register again" confirmation. Bulk precheck endpoint powers the same UX for multi-select.
+3. **Manager team view:** roster with hours-vs-target rings, expandable full history per employee (all years), restricted fields never rendered (and never sent — §2.4).
+4. **Course wizard** replaces the 700-line form; per-person session-overlap detection at selection time (hour-granular, timezone-safe, server-checked).
+5. **Attendance:** tap-to-toggle roster per session, "mark all", printable/exportable sheet.
+6. **Accessibility & polish:** WCAG 2.2 AA, keyboard-complete, light/dark from one token set, responsive (self-registration and attendance are the mobile-first flows), skeletons, empty states, undo-toasts instead of blocking confirms where reversible.
+7. **Admin console:** DB health checks (orphan attendance rows, name-convention violations, series-mapping exceptions), migration review/approval screen (§4.4), role management, audit log browser.
 
-**Personas & entry experiences**
-- **HR admin:** operational dashboard — upcoming sessions this week, courses missing attendance, budget vs. actual, pending approvals, quick actions.
-- **Manager:** team dashboard — team hours vs. target (progress rings), team registrations, approve requests, "register my team" flow.
-- **Employee (new):** course catalog, "my learning" (upcoming sessions, history, hours progress), self-registration.
+### 2.9 Infrastructure (same environment, hardened)
 
-**Key UX moves**
-1. **Course catalog** replaces the collapsible-well list: card grid + data-table + **calendar view** toggles; faceted filters (year, type, status, mandatory, internal/external, dates); saved filters; global search (⌘K).
-2. **Course creation wizard** (details → sessions → participants → review & notify) replaces the single 700-line form; inline conflict detection (per-person session overlap shown at selection time, hour-granular, timezone-safe).
-3. **Status system:** colored chips + icons with text labels (Draft / Tentative / Scheduled / In progress / Completed / Needs attendance) replace baby/old-man/exclamation background images and red outlines.
-4. **Participants management:** searchable multi-select with bulk paste of emails (keep this recent feature — it's good), bulk add team/department, capacity + waitlist indicators. Drag-and-drop kept only as an enhancement, never the only path.
-5. **Attendance:** per-session roster with tap-to-toggle, "mark all", and printable/exportable sheet; optional QR self-check-in (phase 4+).
-6. **Dashboards:** consistent chart style, target lines, quarter drill-down; replace the current white-on-dark hardcoded pink/yellow palette.
-7. **Design quality bar:** WCAG 2.2 AA, full keyboard support, light/dark themes from one token set, responsive down to mobile (self-registration and attendance marking are the mobile-first flows), skeleton loading, empty states with next-step actions, undo toasts instead of blocking confirm dialogs where reversible.
-8. **i18n-ready** (Angular i18n or Transloco), including RTL support if Hebrew UI is desired.
-
-### 2.7 Infrastructure, build & CI/CD
-
-- **Docker:** multi-stage `node:22-alpine` build → **nginx:alpine** runtime with SPA fallback (`try_files … /index.html`), gzip/brotli, security headers (CSP, HSTS), non-root user. Remove *all* TLS-verification bypasses (`NODE_TLS_REJECT_UNAUTHORIZED=0`, `strict-ssl false`) — install the corporate CA properly instead.
-- **Runtime config:** `config.json` fetched at startup (API base URL, IdP settings) — one image for all environments; delete hardcoded `http://localhost:8080`.
-- **CI (GitLab):** lint → typecheck → unit tests → build → dependency & container scan → e2e (Playwright against preview) → deploy. Renovate/Dependabot for dependency currency.
-- **Version check:** replace the recursive "you promised to refresh :(" nag loop with a standard build-hash banner ("New version available — Refresh").
+- **Same shape as today:** Docker images on company servers, docker-compose/`production.yaml`, GitLab CI/Jenkins. New images: `toma-web` (nginx:alpine serving the React build with SPA fallback, gzip, security headers, non-root) and `toma-api` (node:22-alpine, non-root).
+- **Remove all TLS-verification bypasses** from builds; install the corporate CA into the images properly. npm installs go through the company proxy with `strict-ssl` **on**.
+- **Runtime config** (`/config.json` for web, env vars for API): API base URL, AD/LDAP settings, SMTP host, DB DSN. One image for all environments; no hardcoded `http://localhost:8080`.
+- **CI:** lint → typecheck → unit tests → build → dependency & container scan → e2e (Playwright vs. compose stack with mockup DB) → publish images. Migration dry-run job runs on every migration change (§4.5).
 
 ---
 
 ## 3. Part 2 — Bug & Security Audit
 
-Findings from reading the current code. File references point at this repo. Severity: 🔴 critical, 🟠 high, 🟡 medium, ⚪ low.
+Findings from reading the current code; these motivate design choices above and define the legacy quick-win tasks in §6. Severity: 🔴 critical, 🟠 high, 🟡 medium, ⚪ low.
 
 ### 3.1 Security (all 🔴 unless noted)
 
@@ -202,7 +293,7 @@ Findings from reading the current code. File references point at this repo. Seve
 | S-9 | 🟡 Username written to `localStorage` **before** authentication succeeds; login result parsed with magic `res.text().slice(17)`. | `auth.service.ts:59-71` |
 | S-10 | 🟡 Client `IUser` model carries a `password` field it never needs. | `user.model.ts:7` |
 
-**Correction path:** S-1…S-4 are fixed by the OIDC + server-side RBAC design (§2.4), not by patching the current code. S-5 is an immediate quick win on the existing Dockerfile. S-6/S-7 disappear with the dependency choices in §2.1.
+**Correction path:** S-1…S-4 are fixed by the AD-backed session + server-side RBAC design (§2.5), not by patching the current code. S-5 is an immediate quick win on the existing Dockerfile. S-6/S-7 disappear with the dependency choices in §2.1.
 
 ### 3.2 Functional bugs
 
@@ -235,134 +326,180 @@ Findings from reading the current code. File references point at this repo. Seve
 | B-25 | ⚪ | `NgbModule` imported twice (plain + `forRoot()`), `HttpModule` + `HttpClientModule` both loaded; hardcoded `'SIRC'` category filter; leftover `console.log`s and commented-out debug IDs. | `app.module.ts:80-81`, `emp-detail.component.ts:76`, `emp-list.component.ts:161-163` |
 | B-26 | ⚪ | Presentation state (`style` objects, background-image icon stacks) written directly onto shared model instances. | `course-list.component.ts:217-283`, `emp-list.component.ts:131-151` |
 
-**How the plan resolves these:** roughly a third (B-1, B-9, B-12, B-23…) are trivially fixable in the legacy app if a stop-gap release is wanted, but the structural ones (B-2/3/8/11/17) are consequences of the string-keyed data model and client-side joins — they disappear by design in the rebuild (§2.2–2.5). The plan therefore does **not** schedule a bug-fixing phase on legacy code beyond the security quick wins in Phase 0.
+The structural bugs (B-2/3/8/11/17) are consequences of the string-keyed data model and client-side joins — they disappear by design in the rewrite. Only the cheap legacy quick wins (S-5, B-1, B-21) are worth fixing in the old app while it runs in parallel.
 
 ---
 
-## 4. Part 3 — New Features & Enhancements
+## 4. Part 3 — Database Strategy & Migration Plan
 
-Prioritized with MoSCoW. "Must" items are in the phased plan; others are backlog.
+Hard constraints: **the existing database keeps serving the app**; new needs are met **additively**; every change is a reviewed, tested, Admin-approved migration.
 
-### Must have (in scope of this program)
-1. **Employee self-registration** — per-course policy (`none` / `open` / `approval_required`), capacity limits, waitlist with automatic promotion, confirmation emails.
-2. **Manager approval workflow** — approvals inbox for managers/HR, notifications on request/approve/decline, full audit trail.
-3. **Notifications engine** — templated email (invite, reminder N days before session, waitlist promoted, attendance missing) with **iCal (.ics) attachments** so sessions land in Outlook calendars; per-user notification log.
-4. **Role-based dashboards** — HR operations view, manager team view, employee "my learning" view (§2.6).
-5. **Compliance tracking for mandatory courses** — who hasn't completed which mandatory training, per org unit, with export and reminder blast.
-6. **SSO** — corporate IdP login, no local passwords.
-7. **Audit log** — every create/update/delete/registration change is attributable (today `creator` is a free-text full name).
+### 4.1 Additive-only principles
+
+1. **Never** rename, drop, or change the semantics of an existing column/table while the legacy app can still write (parallel-run period). The legacy app must keep functioning against the migrated schema.
+2. New capabilities go into **new tables** (`course_series`, `registration_ext`, `notification_rule`, `notification_log`, `user_role`, `audit_log`, `migration_approval`) and **new nullable columns** with defaults (e.g., `course.series_id`, `course.capacity`, `course.self_registration`).
+3. The API's data layer owns the mapping between the legacy shape (name-keyed rows, `"Name #N YYYY"`) and the domain model (§2.3). Compatibility views can be added for reporting if useful.
+4. Existing data is never destructively rewritten; derived structures (series links) are populated alongside.
+
+### 4.2 Recurring-course identification (automatic, reviewed)
+
+A migration tool scans all historical course rows and proposes series groupings:
+
+- **Normalization:** strip trailing year (`\s\d{4}$`) and run suffix (`#\d+$`), trim, casefold, collapse whitespace → candidate series key.
+- **Grouping:** exact normalized-name match ⇒ high confidence; fuzzy match (small edit distance / token overlap, same course type) ⇒ low confidence, flagged.
+- **Output:** a human-readable **series-mapping report**: proposed `course_series` rows, member runs per series with years, confidence per grouping, and an exceptions list (ambiguous or one-off courses).
+- **Review loop:** the report is reviewed (Admin + HR domain knowledge), corrections applied to a mapping file, re-run until clean; only then does the data migration insert `course_series` rows and set `course.series_id`.
+
+### 4.3 Migration tooling
+
+- Versioned SQL migrations (**node-pg-migrate/knex-style runner**, engine per the actual DB — to be confirmed from the server's config; scripts are plain SQL with `up`/`down`).
+- Every migration ships with: purpose description, DDL/DML, expected effects (row counts, affected tables), rollback script, and automated **reconciliation checks** (e.g., "every non-archived course has a series_id", "sum of hours per employee unchanged").
+- **Dry-run mode** prints the plan and reconciliation results without committing.
+
+### 4.4 Admin approval gate (requirement #6)
+
+- Production migration execution requires a recorded approval: the runner writes a `migration_approval` row (migration id, checksum, approver, timestamp) and **refuses to apply any migration on the production DSN without a matching approved checksum**.
+- The Admin console (§2.8) shows pending migrations with their reports and dry-run output, and provides the Approve action; approval can also be granted via a signed CLI command if the console isn't available (bootstrap case).
+- Every run (dry or real) is logged to `audit_log` with before/after row counts.
+
+### 4.5 Mockup database & testing (requirement #6)
+
+- **Mockup DB** = same engine + schema in Docker Compose, seeded two ways: (a) synthetic generator (realistic names, org tree, multi-year recurring courses, edge cases like `#N` suffixes, name collisions such as Java/JavaScript, orphan attendance rows) and (b) optional **anonymizer** for a production snapshot (scrubs names/emails, keeps distributions) for high-fidelity rehearsal.
+- CI runs on every migration change: fresh mockup DB → apply all migrations → reconciliation assertions → run API integration test suite against the migrated schema → legacy-compat smoke checks (the queries the old app issues still succeed).
+- The Developer role's environments always point at mockup DBs (§2.4).
+
+---
+
+## 5. Part 4 — New Features & Enhancements
+
+Requirements #2–#5 (roles, series, history visibility, notifications) are specified in §2 and are **in scope**. Remaining backlog, prioritized:
+
+### Must have (in scope)
+1. **Employee self-registration** — per-course policy (`none`/`open`/`approval_required`), capacity, waitlist with automatic promotion.
+2. **Manager course requests** — request/suggest flow with HR approvals inbox (per role matrix).
+3. **Registration notifications with HR-configurable rules** (§2.7) incl. reminders and .ics Outlook invites (§2.6).
+4. **Compliance tracking for mandatory courses** — per org unit, exportable, reminder blast.
+5. **Audit log** — every mutation attributable (today `creator` is a free-text name).
+6. **Admin console** — DB health, migration approvals, role management.
 
 ### Should have
-8. **Calendar views** — org-wide training calendar + personal calendar; Outlook/Exchange sync beyond .ics if an API is available.
-9. **Post-course feedback surveys** — rating + comments, results on the course page; informs future planning.
-10. **Course templates & series** — proper modeling of recurring courses (replaces the `#N` name-suffix convention), one-click "schedule next run".
-11. **HRIS sync hardening** — scheduled employee import with reconciliation report instead of implicit reads.
-12. **Certificates of completion** — generated PDF per attendee, stored on the employee profile.
-13. **Bulk operations** — multi-select registration/removal, CSV import of participants, bulk attendance.
-14. **Saved reports & scheduled exports** — email a monthly hours report to HR automatically.
-15. **Teams/Slack notifications** as an additional channel.
+7. Post-course feedback surveys (rating + comments on the course page).
+8. "Schedule next run" from a series (copies latest run; replaces the `#N` convention UX).
+9. HRIS sync hardening — scheduled employee import with reconciliation report.
+10. Certificates of completion (PDF on the employee profile).
+11. Bulk operations — multi-select registration, CSV import, bulk attendance.
+12. Saved reports & scheduled email exports (monthly hours report to HR).
 
 ### Could have (backlog)
-16. Skill/topic tagging with personal recommendations ("people in your role took…").
-17. QR-code self-check-in for attendance at the venue.
-18. PWA install + offline attendance marking for instructors.
-19. Budget forecasting (committed vs. actual vs. tentative) with scenario toggles.
-20. External training requests (employee submits an external course/conference for approval with cost).
-21. Learning paths (ordered course bundles for onboarding programs).
-22. AI assistant for HR: draft course descriptions/invite emails, suggest schedule slots with fewest conflicts.
+13. Skill/topic tagging + recommendations ("people in your role took…").
+14. QR self-check-in for attendance.
+15. Budget forecasting (committed vs. actual vs. tentative scenarios).
+16. External training requests (employee submits external course/conference with cost for approval).
+17. Learning paths (ordered bundles for onboarding).
+18. EWS-based organizer meetings + free/busy-aware session scheduling (§2.6).
 
 ---
 
-## 5. Part 4 — Phased Work Plan
+## 6. Part 5 — Task List
 
-Assumptions: 2–3 frontend/full-stack devs + 1 backend dev (part-time on the API) + designer at ~30%; sprints of 2 weeks. Legacy app keeps running untouched until Phase 6 cutover. Durations are estimates for planning, not commitments.
+Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakeholder input (§8); everything else is executable by Claude. Legacy app stays untouched except T0.4.
 
-### Phase 0 — Discovery & Foundations (2–3 weeks)
-- Inventory backend endpoints & DB schema with the server team; document the *actual* contract (source of truth for parity).
-- Write the **OpenAPI v1 contract** for §2.2 and agree ownership/timeline with backend team.
-- Decide IdP (Entra/Okta/Keycloak) and register the app; confirm email infrastructure for notifications.
-- UX discovery: interviews with HR, 2–3 managers, employees; journey maps for the three personas; low-fi wireframes of catalog, course detail, wizard, dashboards.
-- **Legacy quick wins (only these):** remove TLS bypasses from Dockerfile (S-5), add Apache SPA fallback (B-21), fix `fastName` typo (B-1) — cheap, high-value, keeps legacy usable during the program.
-- **Deliverables:** signed-off API contract v1, design direction, environment/CI skeleton, groomed backlog.
-- **Exit criteria:** backend team committed to contract milestones; IdP client credentials issued.
+### WS-0 — Inputs & groundwork
+- [ ] T0.1 ⛔ Obtain DB engine/version, connection details, and a schema dump (or read access) — *everything in WS-2/WS-3 keys off the real schema*
+- [ ] T0.2 ⛔ Confirm auth path: ADFS available? else LDAP endpoint + service account (§2.5)
+- [ ] T0.3 ⛔ Exchange SMTP relay host/port + service account; confirm whether EWS is reachable
+- [ ] T0.4 Legacy quick wins on the running app: remove Docker TLS bypasses (S-5), add SPA fallback (B-21), fix `fastName` typo (B-1)
+- [ ] T0.5 Document the existing schema (tables, keys, name conventions, data quirks) as `docs/legacy-schema.md`
+- [ ] T0.6 Write the OpenAPI v1 contract for §2.2; set up mock server (MSW/prism) from it
 
-### Phase 1 — Platform Skeleton (3–4 weeks)
-- New Angular 20 workspace: strict TS, ESLint/Prettier, Vitest, Playwright, CI pipeline with scans.
-- OIDC login/logout/refresh, role claims, route guards, HTTP interceptor, problem+json error handling, Sentry.
-- Generated API client from the OpenAPI contract (against a mock server until the real one lands).
-- App shell: navigation, page layout, theming (M3 tokens, light/dark), design-system primitives (data table, status chip, empty state, confirm/undo toast, skeletons).
-- Runtime `config.json`, nginx image, deploy to a dev environment.
-- **Exit criteria:** login via SSO on dev; one end-to-end vertical slice (e.g., read-only course list from the mock API) with tests in CI.
+### WS-1 — Mockup database & migration framework  *(prereq: T0.1, T0.5)*
+- [ ] T1.1 Docker Compose mockup DB (same engine/version) + synthetic seed generator (org tree, multi-year recurring courses, `#N` suffixes, name-collision and orphan-row edge cases)
+- [ ] T1.2 Optional production-snapshot anonymizer (scrub PII, keep distributions)
+- [ ] T1.3 Migration runner: versioned SQL up/down, dry-run mode, reconciliation-check hooks, checksums
+- [ ] T1.4 `migration_approval` gate: refuse un-approved checksums on the production DSN; CLI approve command; audit logging
+- [ ] T1.5 CI job: fresh mockup DB → apply migrations → reconciliation asserts → legacy-compat smoke queries
 
-### Phase 2 — Core Domain: Courses, Employees, Registration (5–6 weeks)
-- **Catalog:** table/card/calendar views, faceted filters, saved filters, search.
-- **Course detail:** tabs (overview, sessions, participants, attendance, communications), status chips, duplicate action.
-- **Course editor wizard:** details → sessions (hour-granular conflict detection) → participants (search, bulk email paste, team add, capacity/waitlist) → review & notify. Draft autosave keyed by course id.
-- **Employees:** directory with server-side pagination, employee profile (history, hours ring), manager team view.
-- **Attendance:** per-session roster, mark all, export sheet.
-- Backend parity work proceeds in parallel per contract.
-- **Exit criteria:** HR can run the full course lifecycle (create → register → attend → complete) on staging with real data; feature parity checklist for these modules signed by HR.
+### WS-2 — Schema extensions & data migration  *(prereq: WS-1)*
+- [ ] T2.1 Migration M1: `user_role` (+ mapping from `authorizationIdCOMA`: All→HR, PM→Manager, None→Employee), `audit_log`
+- [ ] T2.2 Migration M2: `course_series` + `course.series_id` (nullable) + new course columns (`capacity`, `self_registration`, `status` — additive, legacy-compatible defaults)
+- [ ] T2.3 Series auto-detection tool (§4.2): normalization + grouping + confidence scoring → series-mapping report (`reports/series-mapping.md`)
+- [ ] T2.4 ⛔ Review loop on the mapping report (Admin/HR corrections) → final mapping file
+- [ ] T2.5 Migration M3: populate `course_series` / `series_id` from the approved mapping; reconciliation: every course mapped or explicitly one-off
+- [ ] T2.6 Migration M4: `registration_ext` (status/source/approver), `notification_rule`, `notification_log`
+- [ ] T2.7 Full dry-run of M1–M4 on mockup (synthetic + anonymized) with reconciliation report; package for Admin approval (§4.4)
 
-### Phase 3 — Analytics & Reports (3–4 weeks)
-- Hours dashboard (precise/predicted/tentative vs. target; month/quarter drill-down) — server-computed aggregates replacing the client-side math of `hours.component.ts`.
-- Budget dashboard (cost vs. budget, committed vs. tentative).
-- Compliance report for mandatory courses; Excel/CSV exports (server-generated, injection-safe).
-- **Exit criteria:** numbers reconciled against legacy reports for the previous full year (acceptance test with HR).
+### WS-3 — Backend API  *(prereq: T0.6, WS-1; runs against mockup DB until cutover)*
+- [ ] T3.1 NestJS scaffold: config, pino logging, problem+json errors, OpenAPI generation, healthcheck
+- [ ] T3.2 Prisma introspection of the existing schema; repository layer translating legacy shapes (name-keyed rows) → domain model (§2.3)
+- [ ] T3.3 Auth: LDAP/AD bind (or ADFS OIDC per T0.2), server-side sessions, httpOnly cookies, CSRF protection
+- [ ] T3.4 RBAC: role guards per endpoint + **field-level DTO masking** per §2.4 (budget/price stripped for Admin/Manager/Employee); production refuses Developer logins
+- [ ] T3.5 Employees module: directory (paginated/filtered), profile, org subtree (cycle-safe), **multi-year history grouped by series**
+- [ ] T3.6 Courses & series module: CRUD, duplicate, schedule-next-run, manager `status=requested` flow, sessions with hour-level conflict checks
+- [ ] T3.7 Registrations module: create (with `priorParticipations` in response — req. #4), bulk precheck endpoint, approve/decline/cancel, capacity + waitlist with auto-promotion
+- [ ] T3.8 Attendance module: per-session marking, bulk mark, export (exceljs, injection-safe)
+- [ ] T3.9 Reports module: hours (precise/predicted/tentative vs. target, month/quarter), budget (HR-only), compliance — all aggregation in SQL
+- [ ] T3.10 Notification engine: rule model + evaluation on domain events, recipient resolution (direct manager / title / department / HR / custom), queued mailer (nodemailer→SMTP), templates, `notification_log`, retry/dedupe
+- [ ] T3.11 iCalendar generation: REQUEST/UPDATE(SEQUENCE)/CANCEL parts on invites and session changes; reminder jobs (offsetDays)
+- [ ] T3.12 Admin module: audit-log query API, DB health checks (orphans, convention violations), migrations status + approve endpoints
+- [ ] T3.13 Server-side HTML sanitization for syllabus/mail text (fixes S-8 class)
+- [ ] T3.14 API integration test suite against mockup DB (role matrix tests: every endpoint × 5 roles)
 
-### Phase 4 — Registration Workflows & Notifications (4–6 weeks)
-- Self-registration policies, capacity & waitlist with auto-promotion.
-- Manager/HR approvals inbox; audit log surface.
-- Notification engine: templates, invites with .ics, reminders, waitlist/attendance nudges; per-user log.
-- Employee "my learning" dashboard + mobile-responsive self-registration flow.
-- **Exit criteria:** an employee can discover, request, get approved, attend, and see hours — with zero HR touch; notification deliverability verified.
+### WS-4 — Frontend (React)  *(prereq: T0.6; parallel with WS-3 via mocks)*
+- [ ] T4.1 Vite + React 19 + TS scaffold, ESLint/Prettier, Vitest/RTL/MSW, Playwright, CI wiring
+- [ ] T4.2 Design system: theme tokens (light/dark), PageShell/nav, DataTable, StatusChip, EmptyState, ConfirmUndo, skeletons, env banner (prod/staging/dev color-coded)
+- [ ] T4.3 Generated API client (orval) + TanStack Query hooks + MSW mocks from OpenAPI
+- [ ] T4.4 Auth flow: login page (or ADFS redirect), session handling, role-guarded route tree, "Developer blocked in prod" handling
+- [ ] T4.5 Catalog: series-grouped table/cards/calendar views, faceted filters, saved filters, ⌘K search
+- [ ] T4.6 Series page: runs across years, stats, schedule-next-run
+- [ ] T4.7 Course detail: tabs (overview/sessions/participants/attendance/notifications), status chips, duplicate
+- [ ] T4.8 Course editor wizard: details → sessions (conflict warnings) → participants (search, bulk email paste, team add, capacity/waitlist indicators, **prior-participation badges + re-register confirmation**) → review & notify; draft autosave keyed by course id
+- [ ] T4.9 Employees: directory, profile with multi-year history timeline, manager team view (hours rings, hidden fields respected)
+- [ ] T4.10 Registrations: approvals inbox (HR/manager), waitlist management, self-registration flow (mobile-first)
+- [ ] T4.11 Attendance: roster tap-to-toggle, mark-all, printable sheet
+- [ ] T4.12 Dashboards: HR ops / manager team / employee "my learning" / admin infra
+- [ ] T4.13 Reports: hours, budget (HR-only render), compliance; export buttons
+- [ ] T4.14 Notification rules UI: rules table/editor with recipient chips, per-course overrides, recipient preview, test-send, send log
+- [ ] T4.15 Admin console: role management, audit browser, DB health, **migration review & approve** screen
+- [ ] T4.16 A11y pass (WCAG 2.2 AA), keyboard coverage, responsive audit
+- [ ] T4.17 Playwright e2e: role-based journeys (HR course lifecycle; manager register-with-history-warning; employee self-register; admin approve migration)
 
-### Phase 5 — Hardening & Migration (2–3 weeks)
-- Accessibility audit (WCAG 2.2 AA), performance pass (bundle budget, LCP), penetration test of API authz.
-- Data migration: split legacy `"Name #N YYYY"` records into Course/Session/Registration rows; reconciliation report; historical hours preserved.
-- UAT with HR + pilot manager group; fix window.
-- **Exit criteria:** UAT sign-off; migration dry-run clean on a production snapshot.
-
-### Phase 6 — Cutover & Decommission (1–2 weeks)
-- Freeze legacy writes → final migration → DNS/route switch → legacy app read-only for one grace period → decommission.
-- Runbook, admin documentation, handover session for HR.
-
-**Total: ~5–6 months.** Compressible to ~4 by overlapping Phases 3/4 with more staffing; the critical path is the backend contract (Phases 0–2).
-
-### Suggested milestones
-
-| Milestone | Target |
-|---|---|
-| M1 API contract signed, design direction approved | end Phase 0 |
-| M2 SSO + vertical slice on dev | end Phase 1 |
-| M3 Course lifecycle parity on staging | end Phase 2 |
-| M4 Reports reconciled with legacy | end Phase 3 |
-| M5 Self-registration + notifications live on staging | end Phase 4 |
-| M6 Production cutover | end Phase 6 |
+### WS-5 — Deployment & cutover  *(prereq: WS-2, WS-3, WS-4)*
+- [ ] T5.1 Production images: nginx web (SPA fallback, headers, non-root), node API (non-root); no TLS bypasses; corporate CA baked in
+- [ ] T5.2 Compose/`production.yaml` for company servers: web + api + redis (if used) alongside legacy; runtime config files
+- [ ] T5.3 Staging deployment against mockup/anonymized DB; Developer-role access enabled here
+- [ ] T5.4 ⛔ Admin approval of M1–M4 on production (via the approval gate) → run migrations → reconciliation report
+- [ ] T5.5 Parallel run: new app live against production DB; legacy app still available; banner cross-links; verify legacy still functions post-migration (additive guarantee)
+- [ ] T5.6 Reconcile reports vs. legacy for the last full year (hours/budget numbers match or divergences explained)
+- [ ] T5.7 ⛔ Cutover decision → legacy switched to read-only → decommission; runbook + admin/HR handover docs
 
 ---
 
-## 6. Risks & Mitigations
+## 7. Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Backend/API workstream slips (contract is the critical path) | Blocks Phases 2+ | Contract-first with a mock server; frontend never waits on the real backend; escalate ownership in Phase 0 |
-| Legacy data quality (name-suffix keys, orphan attendance rows) | Migration errors, wrong history | Migration dry-runs with reconciliation reports early (start in Phase 2, not 5) |
-| No SSO/IdP available in the subsidiary | Auth redesign blocked | Fallback: Keycloak instance federated to corporate directory; decided in Phase 0 |
-| HR workflow knowledge is tribal | Parity gaps discovered late | Phase 0 interviews + written parity checklist; HR reviews at every phase exit |
-| Scope creep from the feature backlog | Timeline blowout | MoSCoW enforced; "Could" items need explicit trade-off decisions |
-| Team ramp-up on Angular 20 idioms (signals, standalone) | Slow start | Phase 1 includes reference implementations + lint rules encoding the patterns |
-| Parallel-run confusion (two apps live) | User frustration | Banner in legacy app linking to new one per migrated module; short parallel window |
+| Real schema differs from what the client code implies (only the API's SQL knows the truth) | Rework in data layer | T0.1/T0.5 first; Prisma introspection makes the schema explicit before any feature work |
+| Series auto-detection mis-groups courses (fuzzy matches) | Wrong history/compliance data | Confidence-scored report + human review loop (T2.3/T2.4); low-confidence groups require explicit approval; one-off fallback is safe |
+| Legacy app breaks against migrated schema during parallel run | Outage for current users | Additive-only rule (§4.1) + legacy-compat smoke queries in CI (T1.5) + T5.5 verification |
+| LDAP/ADFS specifics unknown until T0.2 | Auth rework | Auth isolated behind one NestJS module with a narrow interface; both strategies implemented behind config |
+| Exchange deliverability quirks (relay restrictions, iCal rendering in Outlook versions) | Broken invites | Test-send tooling early (T3.11 against a real mailbox), plain-text fallback part in every mail |
+| Field-level hiding leaks via some endpoint | Budget data exposure to Admin/Managers | Central DTO-masking layer + role-matrix integration tests on every endpoint (T3.14) |
+| Scope creep from backlog (§5) | Never-ending project | Task list is the scope; backlog items enter only by explicit decision |
 
 ---
 
-## 7. Open Questions for Stakeholders
+## 8. Open Questions / Required Inputs
 
-1. **IdP:** Which SSO provider does the corporate parent mandate (Entra ID / Okta / other)? Is a client registration for this subsidiary feasible?
-2. **Backend ownership:** Who owns the server repo, and can they staff the API workstream on this timeline? Node/Express kept, or is a rewrite (e.g., NestJS) on the table?
-3. **HRIS source:** Where does employee/manager/category data authoritatively come from, and is there an API/export for scheduled sync?
-4. **Email/calendar:** SMTP relay or Microsoft Graph available for invites and .ics? Is Teams notification wanted?
-5. **Languages:** English only, or Hebrew (RTL) UI as well?
-6. **Self-registration policy:** default open or approval-required? Who approves — direct manager, HR, or course owner?
-7. **History depth:** how many years of legacy records must be migrated vs. archived read-only?
-8. **Compliance:** any retention/privacy constraints (training records are personal data) that affect audit-log and export design?
-9. **Naming:** product is called TOMA but the codebase says COMA — confirm the name for the new UI.
+Blocking items (map to ⛔ tasks):
+
+1. **T0.1** — DB engine + version, and a schema dump or read-only credentials. Is direct DB access from a dev environment possible, or should I work from a provided dump?
+2. **T0.2** — Is ADFS available for OIDC, or do we authenticate via direct LDAP bind? LDAP host/base DN + a service account either way. Which AD groups (if any) should map to the five roles automatically?
+3. **T0.3** — Exchange SMTP relay host/port + service account for the sender mailbox (e.g., `toma@company`). Is EWS enabled/reachable if we later want organizer-owned meetings?
+4. **T2.4** — Who reviews the series-mapping report with me (needs HR domain knowledge of which historic names are "the same course")?
+5. **T5.4 / T5.7** — Who holds the Admin role at go-live (migration approval + cutover decision)?
+
+Non-blocking, decide anytime:
+6. Language(s): English only, or Hebrew (RTL) too?
+7. Which employee fields exactly are hidden from Managers (and from Admin besides budget/price)?
+8. Should Manager course *requests* notify HR by default (suggested: yes, via a shipped notification rule)?
+9. Redis allowed on the company servers for the job queue, or should reminders run on in-process cron?
