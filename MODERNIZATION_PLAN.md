@@ -12,8 +12,11 @@
 4. **Managers see full multi-year training history** of their employees; registering an employee checks prior participation in the same course (re-registration allowed but must be visible).
 5. **Automatic registration notification emails** to relevant managers; **HR-configurable rules** (per course or global; recipients by manager title, department, etc.).
 6. **Any DB change ships as a migration script**, including automatic identification of recurring courses, tested on a mockup database, and **requires Admin approval before running on production**.
-7. **Mail/calendar is on-prem Exchange + Outlook** — integration via SMTP relay + iCalendar and/or EWS. No cloud APIs (no Microsoft Graph).
+7. **Mail/calendar is on-prem Exchange + Outlook** — integration via SMTP relay + iCalendar and/or EWS. No cloud APIs (no Microsoft Graph). *Connection details (and the auth decision) are deferred — both are isolated behind pluggable interfaces (§2.5, §2.6) so nothing else blocks on them.*
 8. **No calendar schedule** — the work is expressed as a dependency-ordered task list (§6), to be executed by Claude.
+9. **Course delivery & lecturer model:** (a) online courses, optionally on the corporate platform; (b) courses taught by company employees — one or more lecturers picked from the employee list; (c) external providers — a lecturer from a training vendor, a specifically invited individual, or multiple external lecturers (§2.3.1).
+10. **Every new column ships with an explicit default for existing rows** (§4.6).
+11. **Dual CI:** the repo is being brought up on GitHub for testing — CI is authored as GitHub Actions **and** a mirrored `.gitlab-ci.yml` (GitLab Free tier), both invoking the same scripts (§2.9). Note: this repo currently contains a `Jenkinsfile` and no `.gitlab-ci.yml`; both new pipelines are created from scratch.
 
 > **Repo reality check:** this repository contains only the Angular 6 frontend ("COMA Client"). The backend is a separate Node service exposing ~40 verb-style endpoints. Because the auth and data-model problems live in the API layer, the rewrite includes a new backend API **over the existing database** (§2.2–2.3).
 
@@ -125,6 +128,10 @@ PATCH  /registrations/{id}                               (approve | decline | ca
 PUT    /sessions/{id}/attendance/{employeeId}            {present: bool}
 POST   /courses/{id}/invitations                         (email + .ics meeting request)
 
+GET/POST/PATCH/DELETE /training-providers                (HR; vendor catalog)
+GET/POST/PATCH/DELETE /external-lecturers
+GET    /employees/{id}/taught                            ("courses taught" for internal lecturers)
+
 GET/POST/PATCH/DELETE /notification-rules                (HR-managed, §2.7)
 GET    /notification-log?courseId=&recipientId=&page=
 
@@ -149,10 +156,17 @@ Employee        id, firstName, lastName, email, managerId, department, title,
 CourseSeries    id, canonicalName, type, description, tags[]    ← NEW (recurring-course identity)
 Course (run)    id, seriesId, title, year, descriptionHtml, notes, mailText,
                 type: technical|enrichment|conference,
+                deliveryType: in_person|online,
+                platform: corporate|other (+ platformUrl)      — online courses only,
                 status: requested|tentative|scheduled|completed|cancelled|archived,
                 isMandatory, isInternal, price, capacity?,
                 selfRegistration: none|open|approval_required, ownerId
-CourseSession   id, courseId, startsAt, endsAt, venue, lecturer
+CourseSession   id, courseId, startsAt, endsAt, venue, lecturer(legacy string)
+CourseLecturer  id, courseId, sessionId?,                      — 1..n per course; either:
+                employeeId?                                    — internal lecturer (employee list)
+                externalLecturerId?                            — external lecturer
+ExternalLecturer id, name, email?, providerId?                 — providerId null = individually invited
+TrainingProvider id, name, contactName?, contactEmail?, notes
 Registration    id, courseId, employeeId, status: invited|pending_approval|registered|
                 waitlisted|declined|cancelled, source: hr|manager|self,
                 requestedBy, approvedBy?, timestamps
@@ -163,6 +177,24 @@ BudgetYear      year, amount        TargetHoursYear  year, hours
 AuditLog        id, actorId, role, action, entityType, entityId, before, after, at
 Role/UserRole   role assignment per user                        ← NEW (5-role model)
 ```
+
+#### 2.3.1 Course delivery & lecturer model (requirement #9)
+
+Delivery medium and lecturer sourcing are **two orthogonal attributes**, which cleanly covers all three requested options (and combinations, e.g., an online course taught by an employee):
+
+| Requested option | `deliveryType` | Lecturers |
+|---|---|---|
+| 1. Online course (optionally on the corporate platform) | `online` (+ `platform: corporate\|other`, `platformUrl`) | any (often none/moderator) |
+| 2. Taught by company employees, one or more | `in_person` or `online` | 1..n `CourseLecturer` rows with `employeeId` |
+| 3. External provider — vendor lecturer, invited individual, or several | `in_person` or `online` | 1..n rows with `externalLecturerId`; `ExternalLecturer.providerId` set for vendor staff, null for individually invited |
+
+Details:
+- Lecturer assignment is **course-level by default, optionally per-session** (`sessionId`), so multi-lecturer courses can specify who teaches which session.
+- Internal and external lecturers can be **mixed** on one course.
+- `TrainingProvider` is a reusable catalog (vendor name + contact) so HR doesn't retype vendor details per course; per-provider history ("all courses by vendor X") comes free.
+- The legacy free-text `Lecturer` column is kept untouched as a display fallback for unmigrated historical rows (§4.7).
+- UI: the course wizard gets a lecturer step (employee autocomplete + external lecturer/provider picker with inline create); the catalog gets delivery-type and provider facets; employee profiles show a "courses taught" section.
+- Internal lecturers are notifiable (they're employees) — session reminders and change notices can include them via a `course_lecturer` recipient selector in notification rules.
 
 ### 2.4 Roles & permission matrix (5 roles, server-enforced)
 
@@ -190,17 +222,19 @@ Notes:
 - **Developer** gets every feature enabled but is bound to **non-production environments / the mockup database**. Implementation: environment-scoped role — the production deployment refuses Developer-role logins (config flag), while staging/dev accept them. A visible environment banner (color-coded) prevents "which DB am I on?" accidents.
 - **Manager** course suggestions reuse the tentative-course concept: a Manager `POST /courses` creates `status=requested`; HR reviews in an approvals inbox and promotes to `tentative`/`scheduled`.
 
-### 2.5 Authentication (on-prem)
+### 2.5 Authentication (on-prem) — **decision deferred, design unblocked**
 
-No cloud IdP is available, so in order of preference:
+The concrete provider choice is postponed (owner decision). To keep all other work unblocked, auth is built as a **pluggable provider behind one narrow interface** (`authenticate(credentials) → identity`), with session infrastructure that is identical regardless of provider: server-side session store, **httpOnly/Secure/SameSite cookies**, CSRF protection, role middleware on every route. No JWT-in-localStorage, no crypto in the browser.
 
-1. **ADFS (on-prem) via OIDC** if the company runs it — standard SSO, no passwords touch our app.
-2. Otherwise **direct LDAP/AD bind** from the API: user submits AD credentials to `/auth/login` over TLS, API binds against the domain controller, then issues an **httpOnly, Secure, SameSite session cookie** (server-side session store). No JWT-in-localStorage, no crypto in the browser.
-3. Optional later: Kerberos/IWA (Negotiate) for silent intranet SSO.
+Providers to be implemented behind the interface:
+1. **DevAuth** (built first, non-production only): a user picker seeded from the mockup DB with selectable role — enables all development, testing, and CI e2e without any IdP. Hard-disabled on the production config.
+2. **LDAP/AD bind** and/or **ADFS OIDC** — implemented when the decision lands (deferred task T0.2); swapping providers touches one module only.
 
-Either way: the current scheme (client-side AES with a bundled key + a localStorage flag) is deleted entirely, and **every** API route enforces authn + role authz middleware.
+Either way, the current scheme (client-side AES with a bundled key + a localStorage flag) is deleted entirely.
 
-### 2.6 Exchange / Outlook integration (on-prem)
+### 2.6 Exchange / Outlook integration (on-prem) — **connection details deferred**
+
+Relay host/credentials are postponed (deferred task T0.3). The mailer is built behind a transport interface with a **dev transport** (writes mail + .ics to files / a local MailDev container for visual inspection) so the whole notification engine is fully implementable and testable now; pointing it at the real relay is a config change.
 
 - **Email sending:** nodemailer → the on-prem Exchange **SMTP relay** (submission endpoint, TLS, service account). All notification mail goes through one queued mailer with retry + `notification_log`.
 - **Calendar invites:** RFC 5545 iCalendar MIME parts (`method=REQUEST`) attached to invite mails — Outlook renders these as real meeting requests with Accept/Decline. Session changes send `SEQUENCE`-incremented updates; cancellations send `method=CANCEL`. This covers invites/updates/cancellations **without any Exchange API dependency**.
@@ -270,7 +304,11 @@ UX specifics carried over from v1 of this plan and extended:
 - **Same shape as today:** Docker images on company servers, docker-compose/`production.yaml`, GitLab CI/Jenkins. New images: `toma-web` (nginx:alpine serving the React build with SPA fallback, gzip, security headers, non-root) and `toma-api` (node:22-alpine, non-root).
 - **Remove all TLS-verification bypasses** from builds; install the corporate CA into the images properly. npm installs go through the company proxy with `strict-ssl` **on**.
 - **Runtime config** (`/config.json` for web, env vars for API): API base URL, AD/LDAP settings, SMTP host, DB DSN. One image for all environments; no hardcoded `http://localhost:8080`.
-- **CI:** lint → typecheck → unit tests → build → dependency & container scan → e2e (Playwright vs. compose stack with mockup DB) → publish images. Migration dry-run job runs on every migration change (§4.5).
+- **CI — dual pipelines (requirement #11):** the same stage set — lint → typecheck → unit tests → build → dependency scan → migration dry-run (§4.5) → e2e (Playwright vs. compose stack with mockup DB) → image build — implemented **twice from one source of truth**:
+  - All CI logic lives in **npm scripts + `ci/*.sh`** so both runners are thin wrappers calling identical commands (no drift).
+  - **GitHub Actions** (`.github/workflows/ci.yml`) — used while the repo lives on GitHub for testing; services (mockup DB, MailDev) via job `services:`/compose.
+  - **`.gitlab-ci.yml`** — mirrored stages, **GitLab Free-tier only** features: plain `stages`/`jobs`, `services:`, `artifacts`, `cache`, `rules:` — no Premium features (no merge trains, multi-project pipelines, or license/security-dashboard jobs; dependency scanning done with `npm audit` + free tooling instead of GitLab Ultimate scanners).
+  - The existing `Jenkinsfile` keeps deploying the **legacy** frontend untouched until cutover; the new images get their own deploy job (GitLab, manual trigger) matching today's registry + `docker-host` flow.
 
 ---
 
@@ -368,6 +406,38 @@ A migration tool scans all historical course rows and proposes series groupings:
 - CI runs on every migration change: fresh mockup DB → apply all migrations → reconciliation assertions → run API integration test suite against the migrated schema → legacy-compat smoke checks (the queries the old app issues still succeed).
 - The Developer role's environments always point at mockup DBs (§2.4).
 
+### 4.6 Default values for new columns on existing rows (requirement #10)
+
+Every additive column defines an explicit default so all historical rows are immediately valid; where a meaningful value can be **derived**, the migration backfills it (derivations listed in the migration report for Admin review):
+
+| New column | Default for old rows | Derivation (backfill) |
+|---|---|---|
+| `course.series_id` | `NULL` | filled by the approved series mapping (§4.2); `NULL` = confirmed one-off |
+| `course.status` | derived | `isTentative=1 → tentative`; all sessions in past → `completed`; else `scheduled` |
+| `course.delivery_type` | `'in_person'` | all legacy courses were frontal |
+| `course.platform` / `platform_url` | `NULL` | n/a (online-only fields) |
+| `course.capacity` | `NULL` (= unlimited) | — |
+| `course.self_registration` | `'none'` | preserves current behavior (no self-registration existed) |
+| `registration_ext.status` | derived | attendance rows exist → `registered`; else `registered` (legacy had no other states) |
+| `registration_ext.source` | `'hr'` | legacy registrations were HR/PM-entered; unknowable per-row, documented assumption |
+| `user_role.role` | derived | `authorizationIdCOMA`: `All→HR`, `PM→Manager`, `None/other→Employee`; Admin/Developer assigned manually post-migration |
+| `notification_rule.*` | seeded defaults | ships the default rules of §2.7 (registration → direct manager + HR, etc.) |
+| `course_lecturer` rows | none for old rows | optional backfill via §4.7; legacy `Lecturer` string remains the fallback display |
+
+Rule of thumb encoded in the migration linter: **no `NOT NULL` column without a `DEFAULT`**, and every derived backfill must be idempotent and covered by a reconciliation assertion.
+
+### 4.7 Lecturer & delivery-type backfill (optional, reviewed)
+
+The legacy `Lecturer` column is one free-text string per course. A backfill tool (same pattern as series detection):
+- Normalizes and matches lecturer strings against employee full names → proposed `course_lecturer(employeeId)` rows (high confidence = exact unique match).
+- Unmatched recurring strings are proposed as `ExternalLecturer` records (grouped, so "John Vendor" appearing in 9 courses becomes one record).
+- Ambiguous matches (duplicate employee names, multi-name strings like "Dana & Avi") go to the exceptions list.
+- Output is a reviewed report; **the legacy string column is never modified** and stays the display fallback where no structured assignment exists.
+
+### 4.8 Where the schema knowledge comes from (and its limits)
+
+The client code in this repo reveals the **API response field names** (`CourseName`, `DateTimeStart`, `sircID`, `EducationHours`, `authorizationIdCOMA`, `managerSircID`, `startDate2/endDate2`, `Lecturer`, `Syllabus`, `TotalHours`, `Price`, `Location`, `IsIn`, `IsMandatory`, `CourseType`, `IsConference`, `Year`, `Creator`, `isTentative`, …) — enough to draft a **provisional schema document** (task T0.5), and that draft is where work starts. It is *not* the schema itself: response keys may be aliases from the backend's SQL, and column **types, keys, indexes, constraints, table names, and any tables not exposed through these endpoints** (budgets, attendance internals, notification data) are invisible from here. The DB engine/version is also not discoverable in this repo — the Dockerfile and compose files here build only the frontend (node builder → httpd), and no service in them references a database. Verification against a real schema dump (or the backend repo) — T0.1 — remains required before migrations M1–M4 are finalized, but no longer blocks starting.
+
 ---
 
 ## 5. Part 4 — New Features & Enhancements
@@ -402,15 +472,16 @@ Requirements #2–#5 (roles, series, history visibility, notifications) are spec
 
 ## 6. Part 5 — Task List
 
-Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakeholder input (§8); everything else is executable by Claude. Legacy app stays untouched except T0.4.
+Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakeholder input (§8); ⏸ marks tasks **deferred by decision** (auth/SMTP — revisit later; interfaces keep everything else unblocked). Everything else is executable by Claude. Legacy app stays untouched except T0.4.
 
 ### WS-0 — Inputs & groundwork
-- [ ] T0.1 ⛔ Obtain DB engine/version, connection details, and a schema dump (or read access) — *everything in WS-2/WS-3 keys off the real schema*
-- [ ] T0.2 ⛔ Confirm auth path: ADFS available? else LDAP endpoint + service account (§2.5)
-- [ ] T0.3 ⛔ Exchange SMTP relay host/port + service account; confirm whether EWS is reachable
+- [ ] T0.1 ⛔ Obtain a schema dump / backend repo access to **verify** the inferred schema (§4.8) — work starts from the inferred draft (T0.5); this verification gates *finalizing* migrations (T2.7), not starting them
+- [ ] T0.2 ⏸ *Deferred:* auth provider decision (ADFS vs. LDAP bind) — until then DevAuth (§2.5) carries all dev/test
+- [ ] T0.3 ⏸ *Deferred:* Exchange SMTP relay details — until then the dev mail transport (§2.6) carries all dev/test
 - [ ] T0.4 Legacy quick wins on the running app: remove Docker TLS bypasses (S-5), add SPA fallback (B-21), fix `fastName` typo (B-1)
-- [ ] T0.5 Document the existing schema (tables, keys, name conventions, data quirks) as `docs/legacy-schema.md`
+- [ ] T0.5 Reverse-engineer `docs/legacy-schema.md` from the client code (fields, name conventions, data quirks; clearly marked *unverified*, §4.8); reconcile against the dump when T0.1 lands
 - [ ] T0.6 Write the OpenAPI v1 contract for §2.2; set up mock server (MSW/prism) from it
+- [ ] T0.7 Dual CI skeleton: `ci/*.sh` + npm scripts as single source of truth; `.github/workflows/ci.yml` (active now) + mirrored `.gitlab-ci.yml` (Free-tier features only); Jenkinsfile left as-is for legacy deploys
 
 ### WS-1 — Mockup database & migration framework  *(prereq: T0.1, T0.5)*
 - [ ] T1.1 Docker Compose mockup DB (same engine/version) + synthetic seed generator (org tree, multi-year recurring courses, `#N` suffixes, name-collision and orphan-row edge cases)
@@ -426,19 +497,22 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T2.4 ⛔ Review loop on the mapping report (Admin/HR corrections) → final mapping file
 - [ ] T2.5 Migration M3: populate `course_series` / `series_id` from the approved mapping; reconciliation: every course mapped or explicitly one-off
 - [ ] T2.6 Migration M4: `registration_ext` (status/source/approver), `notification_rule`, `notification_log`
-- [ ] T2.7 Full dry-run of M1–M4 on mockup (synthetic + anonymized) with reconciliation report; package for Admin approval (§4.4)
+- [ ] T2.7 Migration M5: `course.delivery_type/platform/platform_url`, `training_provider`, `external_lecturer`, `course_lecturer` — defaults per §4.6
+- [ ] T2.8 Lecturer backfill tool (§4.7): match legacy `Lecturer` strings → employees / grouped external lecturers; exceptions report
+- [ ] T2.9 Full dry-run of M1–M5 on mockup (synthetic + anonymized) with reconciliation report **verifying every §4.6 default/derivation**; package for Admin approval (§4.4) — ⛔ finalization gated on T0.1 schema verification
 
 ### WS-3 — Backend API  *(prereq: T0.6, WS-1; runs against mockup DB until cutover)*
 - [ ] T3.1 NestJS scaffold: config, pino logging, problem+json errors, OpenAPI generation, healthcheck
 - [ ] T3.2 Prisma introspection of the existing schema; repository layer translating legacy shapes (name-keyed rows) → domain model (§2.3)
-- [ ] T3.3 Auth: LDAP/AD bind (or ADFS OIDC per T0.2), server-side sessions, httpOnly cookies, CSRF protection
+- [ ] T3.3 Auth: pluggable provider interface + **DevAuth** (non-prod only) + server-side sessions, httpOnly cookies, CSRF protection; real provider (LDAP/ADFS) added when ⏸ T0.2 is decided
 - [ ] T3.4 RBAC: role guards per endpoint + **field-level DTO masking** per §2.4 (budget/price stripped for Admin/Manager/Employee); production refuses Developer logins
 - [ ] T3.5 Employees module: directory (paginated/filtered), profile, org subtree (cycle-safe), **multi-year history grouped by series**
 - [ ] T3.6 Courses & series module: CRUD, duplicate, schedule-next-run, manager `status=requested` flow, sessions with hour-level conflict checks
+- [ ] T3.6b Lecturers & providers module: `training_provider`/`external_lecturer` CRUD, course/session lecturer assignment (internal + external mixed), "courses taught" endpoint, delivery-type/platform fields with validation (platform fields only when `online`)
 - [ ] T3.7 Registrations module: create (with `priorParticipations` in response — req. #4), bulk precheck endpoint, approve/decline/cancel, capacity + waitlist with auto-promotion
 - [ ] T3.8 Attendance module: per-session marking, bulk mark, export (exceljs, injection-safe)
 - [ ] T3.9 Reports module: hours (precise/predicted/tentative vs. target, month/quarter), budget (HR-only), compliance — all aggregation in SQL
-- [ ] T3.10 Notification engine: rule model + evaluation on domain events, recipient resolution (direct manager / title / department / HR / custom), queued mailer (nodemailer→SMTP), templates, `notification_log`, retry/dedupe
+- [ ] T3.10 Notification engine: rule model + evaluation on domain events, recipient resolution (direct manager / title / department / HR / course lecturers / custom), queued mailer behind transport interface (**dev transport: MailDev/file** until ⏸ T0.3; nodemailer→SMTP after), templates, `notification_log`, retry/dedupe
 - [ ] T3.11 iCalendar generation: REQUEST/UPDATE(SEQUENCE)/CANCEL parts on invites and session changes; reminder jobs (offsetDays)
 - [ ] T3.12 Admin module: audit-log query API, DB health checks (orphans, convention violations), migrations status + approve endpoints
 - [ ] T3.13 Server-side HTML sanitization for syllabus/mail text (fixes S-8 class)
@@ -449,11 +523,11 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T4.2 Design system: theme tokens (light/dark), PageShell/nav, DataTable, StatusChip, EmptyState, ConfirmUndo, skeletons, env banner (prod/staging/dev color-coded)
 - [ ] T4.3 Generated API client (orval) + TanStack Query hooks + MSW mocks from OpenAPI
 - [ ] T4.4 Auth flow: login page (or ADFS redirect), session handling, role-guarded route tree, "Developer blocked in prod" handling
-- [ ] T4.5 Catalog: series-grouped table/cards/calendar views, faceted filters, saved filters, ⌘K search
+- [ ] T4.5 Catalog: series-grouped table/cards/calendar views, faceted filters (incl. delivery type, provider), saved filters, ⌘K search
 - [ ] T4.6 Series page: runs across years, stats, schedule-next-run
 - [ ] T4.7 Course detail: tabs (overview/sessions/participants/attendance/notifications), status chips, duplicate
-- [ ] T4.8 Course editor wizard: details → sessions (conflict warnings) → participants (search, bulk email paste, team add, capacity/waitlist indicators, **prior-participation badges + re-register confirmation**) → review & notify; draft autosave keyed by course id
-- [ ] T4.9 Employees: directory, profile with multi-year history timeline, manager team view (hours rings, hidden fields respected)
+- [ ] T4.8 Course editor wizard: details (incl. **delivery type + platform fields**) → **lecturers** (employee autocomplete, external lecturer/provider picker with inline create, per-session assignment) → sessions (conflict warnings) → participants (search, bulk email paste, team add, capacity/waitlist indicators, **prior-participation badges + re-register confirmation**) → review & notify; draft autosave keyed by course id
+- [ ] T4.9 Employees: directory, profile with multi-year history timeline + "courses taught", manager team view (hours rings, hidden fields respected)
 - [ ] T4.10 Registrations: approvals inbox (HR/manager), waitlist management, self-registration flow (mobile-first)
 - [ ] T4.11 Attendance: roster tap-to-toggle, mark-all, printable sheet
 - [ ] T4.12 Dashboards: HR ops / manager team / employee "my learning" / admin infra
@@ -467,7 +541,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T5.1 Production images: nginx web (SPA fallback, headers, non-root), node API (non-root); no TLS bypasses; corporate CA baked in
 - [ ] T5.2 Compose/`production.yaml` for company servers: web + api + redis (if used) alongside legacy; runtime config files
 - [ ] T5.3 Staging deployment against mockup/anonymized DB; Developer-role access enabled here
-- [ ] T5.4 ⛔ Admin approval of M1–M4 on production (via the approval gate) → run migrations → reconciliation report
+- [ ] T5.4 ⛔ Admin approval of M1–M5 on production (via the approval gate) → run migrations → reconciliation report
 - [ ] T5.5 Parallel run: new app live against production DB; legacy app still available; banner cross-links; verify legacy still functions post-migration (additive guarantee)
 - [ ] T5.6 Reconcile reports vs. legacy for the last full year (hours/budget numbers match or divergences explained)
 - [ ] T5.7 ⛔ Cutover decision → legacy switched to read-only → decommission; runbook + admin/HR handover docs
@@ -492,14 +566,17 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 
 Blocking items (map to ⛔ tasks):
 
-1. **T0.1** — DB engine + version, and a schema dump or read-only credentials. Is direct DB access from a dev environment possible, or should I work from a provided dump?
-2. **T0.2** — Is ADFS available for OIDC, or do we authenticate via direct LDAP bind? LDAP host/base DN + a service account either way. Which AD groups (if any) should map to the five roles automatically?
-3. **T0.3** — Exchange SMTP relay host/port + service account for the sender mailbox (e.g., `toma@company`). Is EWS enabled/reachable if we later want organizer-owned meetings?
-4. **T2.4** — Who reviews the series-mapping report with me (needs HR domain knowledge of which historic names are "the same course")?
-5. **T5.4 / T5.7** — Who holds the Admin role at go-live (migration approval + cutover decision)?
+1. **T0.1** — a schema dump (`SHOW CREATE TABLE` / `pg_dump --schema-only`) **or access to the backend repo**. Why this can't come from this repo: the client code only shows API response field names, and this repo's Docker/compose files build only the frontend — no DB engine, version, types, keys, or unexposed tables are discoverable here (§4.8). Work starts from the inferred draft regardless; this input gates *finalizing* the migrations.
+2. **T2.4** — who reviews the series-mapping and lecturer-backfill reports with me (needs HR domain knowledge of which historic names are "the same course"/"the same lecturer")?
+3. **T5.4 / T5.7** — who holds the Admin role at go-live (migration approval + cutover decision)?
+
+Deferred by decision (revisit later; nothing else blocks on them):
+4. **T0.2** — auth provider: ADFS OIDC vs. direct LDAP bind; AD-group→role mapping. DevAuth carries dev/test meanwhile.
+5. **T0.3** — Exchange SMTP relay host/port + sender service account; whether EWS is reachable. Dev mail transport carries dev/test meanwhile.
 
 Non-blocking, decide anytime:
 6. Language(s): English only, or Hebrew (RTL) too?
 7. Which employee fields exactly are hidden from Managers (and from Admin besides budget/price)?
 8. Should Manager course *requests* notify HR by default (suggested: yes, via a shipped notification rule)?
 9. Redis allowed on the company servers for the job queue, or should reminders run on in-process cron?
+10. Corporate online-learning platform: is there a catalog/completion API worth integrating later, or is `platformUrl` linking sufficient (assumed for now)?
