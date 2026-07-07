@@ -96,7 +96,7 @@ One honest caveat: Angular's all-in-one structure enforces consistency on junior
 | DB access | **Prisma** with schema **introspected from the existing MySQL/MariaDB** (`prisma db pull`, multi-schema: `coma` + `emma`) | `emma.*` mapped read-only; parameterized queries end SQL injection; `multipleStatements` disabled; migrations authored separately (§4) |
 | API docs | OpenAPI 3.1 generated from Nest decorators + zod DTOs | Feeds the frontend client generator |
 | Mail | **nodemailer → on-prem Exchange SMTP relay**; iCalendar (RFC 5545) MIME parts for Outlook meeting invites | §2.6 |
-| Jobs | **BullMQ + Redis** (or node-cron if Redis is not allowed on the servers) | Reminder emails, notification queue, HRIS sync |
+| Jobs | **BullMQ + Redis** (or node-cron if Redis is not allowed on the servers) | Reminder emails, notification queue, monthly stats, Emma-feed staleness monitor |
 | Logging/audit | pino structured logs + `audit_log` table | |
 
 ### 2.2 API design (contract-first, over the existing DB)
@@ -255,9 +255,9 @@ NotificationRule {
            registration_approved | waitlist_promoted | course_requested |
            session_reminder(offsetDays) | attendance_missing,
   recipientSelectors: [                     // union, deduplicated at send time
-    { kind: direct_manager }                // manager of the affected employee
-    { kind: manager_title,  title: "..." }  // e.g., all "Group Leader"s
-    { kind: department,     dept:  "..." }  // managers/members of a department
+    { kind: direct_manager }                // manager of the affected employee (emma.users.managerSircID)
+    { kind: manager_title,  title: "..." }  // backed by emma.users.workTitle / rank (1-8: PM…Director)
+    { kind: department,     dept:  "..." }  // backed by emma.users.teamName / costCenter
     { kind: hr }                            // all HR-role users
     { kind: course_owner }
     { kind: employee }                      // the affected employee
@@ -314,6 +314,29 @@ UX specifics carried over from v1 of this plan and extended:
   - **GitHub Actions** (`.github/workflows/ci.yml`) — used while the repo lives on GitHub for testing; services (mockup DB, MailDev) via job `services:`/compose.
   - **`.gitlab-ci.yml`** — mirrored stages, **GitLab Free-tier only** features: plain `stages`/`jobs`, `services:`, `artifacts`, `cache`, `rules:` — no Premium features (no merge trains, multi-project pipelines, or license/security-dashboard jobs; dependency scanning done with `npm audit` + free tooling instead of GitLab Ultimate scanners).
   - The existing `Jenkinsfile` keeps deploying the **legacy** frontend untouched until cutover; the new images get their own deploy job (GitLab, manual trigger) matching today's registry + `docker-host` flow.
+
+### 2.10 Repository layout — one monorepo (recommended)
+
+**Recommendation: keep client and server in a single repository**, structured as npm workspaces:
+
+```
+/apps/web            React client (Vite)
+/apps/api            NestJS API
+/packages/shared     TypeScript domain types + zod schemas + OpenAPI contract
+/db                  migrations, seed generators, mockup-DB compose
+/ci                  shared CI scripts (single source for GitHub Actions + GitLab CI)
+/legacy-client       (current Angular app — moved or left at root untouched until decommission)
+/backend             (current Express server — untouched until decommission)
+```
+
+Why monorepo fits this app:
+- **One team, one product, one tightly-coupled contract.** Every meaningful change touches the API and the UI together; a monorepo makes that a single atomic commit/PR — contract change + server + client + e2e reviewed and merged as one unit. With two repos, every contract change becomes a two-PR dance with an ordering problem and a compatibility window.
+- **Shared types are the payoff.** `packages/shared` lets the React app import the *same* zod schemas and TS types NestJS validates with — end-to-end type safety with zero drift. Across two repos this requires publishing a versioned package to a private registry (infrastructure GitLab Free doesn't make pleasant) or copy-paste, which is how the current client/server pair drifted apart (e.g., the client's `getUserDetails` expectations vs. what the server selects — §3.3 BB-7).
+- **E2E and migrations live with both sides.** Playwright tests and the mockup DB spin up client+server+DB from one compose file at one commit — "which server version was this client tested against?" stops being a question.
+- **History already voted:** the two apps were separate repos, and the split produced duplicated conventions (`url2Name` reimplemented both sides), divergent docs, and contract drift. You've effectively begun merging them by adding `backend/` here.
+- **Ops stays unchanged:** the monorepo still builds **two Docker images** (web, api) with path-filtered CI jobs (client-only change ⇒ no API rebuild). Deployment topology is identical to two repos.
+
+When two repos *would* be right (none apply here): separate teams with independent release cadences, per-repo access control (folder-level permissions don't exist on GitLab Free/GitHub), or a server consumed by many unrelated clients.
 
 ---
 
@@ -478,7 +501,8 @@ The legacy `Lecturer` column is one free-text string per course. A backfill tool
 
 With the backend in the repo, the schema is known from its SQL:
 
-- **Engine:** MySQL/MariaDB (`mysql` driver; `.env` uses `MARIADB_*` vars). Two schemas: **`emma`** (employee master shared with the Emma app — `users`: `sircID`, `firstName`, `lastName`, `email`, `userName`, `category`, `status`, `startDate/2`, `endDate/2`, `managerSircID`, `authorizationIdCOMA`, `genNum`, `imageUrl`; **read-only for TOMA**) and **`coma`**:
+- **Engine:** MySQL/MariaDB (`mysql` driver; `.env` uses `MARIADB_*` vars). Two schemas: **`coma`** (application data, tables below) and **`emma`** (employee master, **read-only for TOMA**).
+- **`coma` tables:**
   - `courses` (`CourseID` PK, `CourseName` = "Name #N YYYY", `Lecturer`, `Syllabus`, `TotalHours`, `Price`, `Notes`, `TextForMail`, `Location`, `IsIn`, `IsMandatory`, `IsConference`, `CourseType`, `Year`, `Creator`, `isTentative`, `participantsAmountEstimated`)
   - `coursetouser` (`CourseID`, `ID`) — registrations
   - `coursetodatetime` (`CourseID`, `DateTimeStart`, `DateTimeEnd`) — sessions
@@ -486,6 +510,7 @@ With the backend in the repo, the schema is known from its SQL:
   - `users` (`ID`, `EducationHours{year}`…) — **one column per year** (§4.9)
   - `budget` (`yearlyBudget{year}`…), `hours` (`yearlyTargetHours{year}`…) — same per-year-column pattern
   - `houersPerMonthPerManager` (`ID`, `recoredDate`, `empCount`, `predictHours`, `presiceHours`) — populated monthly by a stored procedure
+- **`emma.users`** (documented in `backend/emma.users.md`): fed from **Workday** by the Emma app's sync scripts — TOMA needs no HRIS integration of its own. Key columns beyond the basics: `ID` vs. `sircID` (two distinct identifiers — COMA keys on `sircID`; manager linkable via either `managerID` or `managerSircID`), `genNum`, `workTitle`, `rank` (1–8: PM/TL/…/Director — powers the notification `manager_title` selector), `teamName` (often stored as `(TeamName)` — needs normalization for the `department` selector), `costCenter`, `category` ("SIRC"/"Contractor"), `status` (`working`/`left`/`deleted` — **deleted rows get their ID suffixed with a timestamp**, a quirk the data layer must tolerate), `startDate2`/`endDate2` for rehires, `privateEmail`, `AuthorizationID` (Emma's own level, distinct from `authorizationIdCOMA`). Dates are normalized to a noon timestamp to dodge timezone drift — which explains the legacy tentative-course 13:00/14:00 placeholder session.
 - **Remaining gap (narrowed T0.1):** exact column types/keys/indexes and the bodies of the six stored procedures (`spr_getAllemployeesCoursesWithHouersByManagerID`, `spr_getSumEmpPerMonth`, `spr_getPrecisetHoursPerMonthByManagerUsingOldData`, `spr_getPredictHoursPerMonthByManagerUsingOldData`, `spr_getAmountEmployees`, `spr_monthlyUpdateHoursPerMonthPerManager`). One command supplies all of it: `mysqldump --no-data --routines coma emma > schema.sql`. Needed before migrations are finalized; everything else proceeds meanwhile.
 
 ### 4.9 Normalizing the per-year columns (new, driven by §3.3 BB-1/BB-5)
@@ -515,7 +540,7 @@ Requirements #2–#5 (roles, series, history visibility, notifications) are spec
 ### Should have
 7. Post-course feedback surveys (rating + comments on the course page).
 8. "Schedule next run" from a series (copies latest run; replaces the `#N` convention UX).
-9. HRIS sync hardening — scheduled employee import with reconciliation report.
+9. ~~HRIS sync hardening~~ **Resolved by discovery:** `emma.users` is already fed from **Workday** by the Emma app — TOMA stays a read-only consumer. Remaining item: a lightweight staleness monitor that alerts Admin if the Emma feed stops updating.
 10. Certificates of completion (PDF on the employee profile).
 11. Bulk operations — multi-select registration, CSV import, bulk attendance.
 12. Saved reports & scheduled email exports (monthly hours report to HR).
@@ -542,6 +567,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T0.5 Write `docs/legacy-schema.md` from the backend SQL (§4.8: tables, relationships, name conventions, per-year-column inventory, data quirks); reconcile against the T0.1 dump when it lands
 - [ ] T0.6 Write the OpenAPI v1 contract for §2.2; set up mock server (MSW/prism) from it
 - [ ] T0.7 Dual CI skeleton: `ci/*.sh` + npm scripts as single source of truth; `.github/workflows/ci.yml` (active now) + mirrored `.gitlab-ci.yml` (Free-tier features only); Jenkinsfile left as-is for legacy deploys
+- [ ] T0.8 Restructure the repo as an npm-workspaces monorepo (§2.10): `apps/web`, `apps/api`, `packages/shared`, `db/`, `ci/`; legacy client and `backend/` left in place untouched until decommission; path-filtered CI jobs
 
 ### WS-1 — Mockup database & migration framework  *(prereq: T0.1, T0.5)*
 - [ ] T1.1 Docker Compose mockup DB (same engine/version) + synthetic seed generator (org tree, multi-year recurring courses, `#N` suffixes, name-collision and orphan-row edge cases)
@@ -616,7 +642,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 |---|---|---|
 | Stored-procedure bodies and exact DDL still unseen (six sprocs power the hours dashboards) | Report-parity gaps, migration rework | T0.1 dump (`--no-data --routines`) before finalizing M1–M6; new reports re-derived from base tables and reconciled against legacy output (T5.6) |
 | Education-hours totals already drifted from attendance truth (running `+=` totals, §4.9) | Legacy vs. new report mismatches blamed on the rewrite | Drift report shipped with M6 — discrepancies surfaced to HR/Admin *before* cutover as data corrections, not code bugs |
-| `emma.users` is shared with the Emma app (schema owned elsewhere) | Uncoordinated Emma changes break TOMA | `emma` mapped strictly read-only; integration tests pin the columns TOMA reads; change coordination noted in runbook |
+| `emma.users` is shared with the Emma app (schema owned elsewhere, fed from Workday) | Uncoordinated Emma changes break TOMA | `emma` mapped strictly read-only; integration tests pin the columns TOMA reads (incl. quirks: timestamp-suffixed deleted IDs, `(TeamName)` format, noon-normalized dates); staleness monitor on the Workday feed; change coordination noted in runbook |
 | Series auto-detection mis-groups courses (fuzzy matches) | Wrong history/compliance data | Confidence-scored report + human review loop (T2.3/T2.4); low-confidence groups require explicit approval; one-off fallback is safe |
 | Legacy app breaks against migrated schema during parallel run | Outage for current users | Additive-only rule (§4.1) + legacy-compat smoke queries in CI (T1.5) + T5.5 verification |
 | LDAP/ADFS specifics unknown until T0.2 | Auth rework | Auth isolated behind one NestJS module with a narrow interface; both strategies implemented behind config |
