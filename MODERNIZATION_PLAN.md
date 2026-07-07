@@ -575,9 +575,12 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 > **WS-1 + T3.2 done:** mockup **MariaDB** (`db/`) with legacy-shaped schema + synthetic seed;
 > the API now runs on it via a `mysql2` repository layer (revised from Prisma — see §2.1 note),
 > with roles resolved from the DB, multi-year history (req. #4) and the Java/JavaScript collision
-> proven by **14 integration tests**; CI provisions a MariaDB service + seed. Monorepo totals: 5
-> workspaces, 24 tests, all CI stages green. Next: MUI design system (T4.2), orval client (T4.3),
-> real course/registration write modules (T3.6/T3.7), then the migration framework (T1.3+).
+> proven by integration tests; CI provisions a MariaDB service + seed. **Registration writes
+> (T3.7):** `POST …/registrations` + bulk `precheck` return prior-participation (same series) and
+> same-day session conflicts (req. #4), role-guarded. **Verified live in a real browser** (Playwright
+> → React → API → MariaDB): HR sees course prices, employee sees them masked. Monorepo totals: 5
+> workspaces, **28 tests**, all CI stages green. Next: MUI design system (T4.2), orval client (T4.3),
+> course/session write endpoints (T3.6), then the migration framework (T1.3+) and M1–M6.
 
 ### WS-0 — Inputs & groundwork
 - [ ] T0.1 ⛔ *(narrowed — schema now known from `backend/`, §4.8)* Obtain `mysqldump --no-data --routines coma emma` for exact column types/keys/indexes and the six stored-procedure bodies; gates *finalizing* migrations (T2.9), not starting them
@@ -616,7 +619,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T3.5 Employees module: directory (paginated/filtered), profile, org subtree (cycle-safe), **multi-year history grouped by series**
 - [ ] T3.6 Courses & series module: CRUD, duplicate, schedule-next-run, manager `status=requested` flow, sessions with hour-level conflict checks
 - [ ] T3.6b Lecturers & providers module: `training_provider`/`external_lecturer` CRUD, course/session lecturer assignment (internal + external mixed), "courses taught" endpoint, delivery-type/platform fields with validation (platform fields only when `online`)
-- [ ] T3.7 Registrations module: create (with `priorParticipations` in response — req. #4), bulk precheck endpoint, approve/decline/cancel, capacity + waitlist with auto-promotion
+- [~] T3.7 Registrations module: **create + bulk precheck done** — `POST /courses/:id/registrations` returns `priorParticipations` (same series) + same-day session conflicts (req. #4); `GET …/precheck` for bulk; role-guarded; DB-backed; 4 integration tests. Approve/decline/cancel + capacity/waitlist pend the `registration_ext` table (M4)
 - [ ] T3.8 Attendance module: per-session marking, bulk mark, export (exceljs, injection-safe)
 - [ ] T3.9 Reports module: hours (precise/predicted/tentative vs. target, month/quarter), budget (HR-only), compliance — all aggregation in SQL
 - [ ] T3.10 Notification engine: rule model + evaluation on domain events, recipient resolution (direct manager / title / department / HR / course lecturers / custom), queued mailer behind transport interface (**dev transport: MailDev/file** until ⏸ T0.3; nodemailer→SMTP after), templates, `notification_log`, retry/dedupe

@@ -122,4 +122,51 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       expect(run2025.attended).toBe(true);
     });
   });
+
+  describe('registration writes (requirement #4 — prior-participation visibility)', () => {
+    it('forbids an employee from registering others', async () => {
+      const { agent } = await login('carol');
+      const res = await agent
+        .post('/api/v1/courses/202/registrations')
+        .send({ employeeId: '4', source: 'manager' });
+      expect(res.status).toBe(403);
+    });
+
+    it('registers an employee and surfaces prior participation in the same series', async () => {
+      const { agent } = await login('alice');
+      // Registering Carol (id 3) for the 2026 TypeScript run should reveal her 2025 run.
+      const res = await agent
+        .post('/api/v1/courses/201/registrations')
+        .send({ employeeId: '3', source: 'hr' });
+      expect(res.status).toBe(201);
+      expect(res.body.registration).toMatchObject({
+        courseId: 201,
+        employeeId: '3',
+        status: 'registered',
+      });
+      const priorYears = res.body.priorParticipations.map((p: { year: number }) => p.year);
+      expect(priorYears).toContain(2025);
+      expect(Array.isArray(res.body.conflicts)).toBe(true);
+    });
+
+    it('404s for an unknown course', async () => {
+      const { agent } = await login('alice');
+      const res = await agent
+        .post('/api/v1/courses/999999/registrations')
+        .send({ employeeId: '3', source: 'hr' });
+      expect(res.status).toBe(404);
+    });
+
+    it('prechecks multiple employees at once', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.get('/api/v1/courses/201/registrations/precheck?employeeIds=3,4');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveLength(2);
+      expect(res.body[0].registration).toBeNull();
+      // Carol (first id) has the 2025 prior run; Dave (id 4) does not.
+      expect(res.body[0].priorParticipations.some((p: { year: number }) => p.year === 2025)).toBe(
+        true,
+      );
+    });
+  });
 });
