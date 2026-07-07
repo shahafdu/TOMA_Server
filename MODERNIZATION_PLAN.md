@@ -18,7 +18,7 @@
 10. **Every new column ships with an explicit default for existing rows** (§4.6).
 11. **Dual CI:** the repo is being brought up on GitHub for testing — CI is authored as GitHub Actions **and** a mirrored `.gitlab-ci.yml` (GitLab Free tier), both invoking the same scripts (§2.9). Note: this repo currently contains a `Jenkinsfile` and no `.gitlab-ci.yml`; both new pipelines are created from scratch.
 
-> **Repo reality check:** this repository contains only the Angular 6 frontend ("COMA Client"). The backend is a separate Node service exposing ~40 verb-style endpoints. Because the auth and data-model problems live in the API layer, the rewrite includes a new backend API **over the existing database** (§2.2–2.3).
+> **Repo reality check (updated):** the repository now contains both the Angular 6 frontend ("COMA Client", plus a vendored `ngx-wig` fork) and, under `backend/`, the Express server (secrets stripped). The backend confirms: **MySQL/MariaDB** with two schemas — `emma` (employee master, shared with the Emma application, treated as **read-only** by TOMA) and `coma` (courses, registrations, attendance, budgets) — **LDAP bind** authentication, an unauthenticated **SMTP relay (port 25)** for mail, and three Jenkins-cron mail scripts. Remaining unknowns are only the exact DDL (column types/keys/indexes) and the six stored-procedure bodies — obtainable with one `mysqldump --no-data --routines` (§4.8).
 
 ---
 
@@ -48,8 +48,10 @@
 | Dates | moment.js (deprecated), locale-dependent `toLocaleDateString()` comparisons | Correctness bugs, bundle weight |
 | Excel | `xlsx@0.15` (known CVEs) client-side with string-built formulas | Vulnerable dep, formula-injection risk |
 | Tests | Karma/Jasmine/Protractor scaffolding, effectively no tests | No safety net (Protractor is discontinued) |
-| Build/Deploy | Docker build **disables TLS verification globally**; Apache httpd with no SPA fallback | Supply-chain risk; deep-link refresh 404s |
-| Backend API | ~40 verb-style endpoints (`addUserToCourse/:ID`, `getCourseExists/:name/:year`), plain HTTP, unauthenticated | No resource model, no pagination, no authz |
+| Build/Deploy | Docker build **disables TLS verification globally** (both apps); Apache httpd with no SPA fallback | Supply-chain risk; deep-link refresh 404s |
+| Backend API | Express with ~40 verb-style endpoints (`addUserToCourse/:ID`), string-interpolated SQL with `multipleStatements: true`, CORS `*`, unauthenticated | SQL injection on nearly every route; no resource model, no pagination, no authz (§3.3) |
+| Database schema | `coma` + `emma` (shared, read-only); **year-suffixed columns** (`EducationHours2024`, `yearlyBudget2024`, `yearlyTargetHours2024`) requiring a manual `ALTER TABLE` ritual every January | Queries break each new year; hours stored as incrementally `+=`-updated totals that drift (§4.9) |
+| Scheduled jobs | Jenkins-cron node scripts (`mail-notification.js`, `course-review.js`, monthly stats) | Manager-notification job contains SQL that cannot parse — it fails every run (§3.3 BB-2) |
 
 **Verdict:** in-place upgrade is not worth it for ~7k LOC with no tests. **Rewrite the client in React and the API layer in TypeScript over the existing database**, run in parallel with the legacy app, then cut over.
 
@@ -91,7 +93,7 @@ One honest caveat: Angular's all-in-one structure enforces consistency on junior
 | Layer | Choice | Notes |
 |---|---|---|
 | Runtime | **Node.js 22 LTS + NestJS (TypeScript)** | Same runtime family as the existing server → same infra; NestJS gives structure, guards, OpenAPI generation |
-| DB access | **Prisma** with schema **introspected from the existing database** (`prisma db pull`) | Guarantees we build on the schema as-is; migrations authored separately (§4) |
+| DB access | **Prisma** with schema **introspected from the existing MySQL/MariaDB** (`prisma db pull`, multi-schema: `coma` + `emma`) | `emma.*` mapped read-only; parameterized queries end SQL injection; `multipleStatements` disabled; migrations authored separately (§4) |
 | API docs | OpenAPI 3.1 generated from Nest decorators + zod DTOs | Feeds the frontend client generator |
 | Mail | **nodemailer → on-prem Exchange SMTP relay**; iCalendar (RFC 5545) MIME parts for Outlook meeting invites | §2.6 |
 | Jobs | **BullMQ + Redis** (or node-cron if Redis is not allowed on the servers) | Reminder emails, notification queue, HRIS sync |
@@ -228,13 +230,15 @@ The concrete provider choice is postponed (owner decision). To keep all other wo
 
 Providers to be implemented behind the interface:
 1. **DevAuth** (built first, non-production only): a user picker seeded from the mockup DB with selectable role — enables all development, testing, and CI e2e without any IdP. Hard-disabled on the production config.
-2. **LDAP/AD bind** and/or **ADFS OIDC** — implemented when the decision lands (deferred task T0.2); swapping providers touches one module only.
+2. **LDAP/AD bind** and/or **ADFS OIDC** — implemented when the decision lands (deferred task T0.2); swapping providers touches one module only. *The legacy backend already authenticates via `ldapjs` bind (`username@domain` against the DC), so LDAP is confirmed available on-prem and is the likely choice — the new implementation must use `ldaps://` (the current code binds over plain `ldap://`, sending AD passwords cleartext on the wire) and drop the client-side AES layer entirely.*
 
 Either way, the current scheme (client-side AES with a bundled key + a localStorage flag) is deleted entirely.
 
 ### 2.6 Exchange / Outlook integration (on-prem) — **connection details deferred**
 
-Relay host/credentials are postponed (deferred task T0.3). The mailer is built behind a transport interface with a **dev transport** (writes mail + .ics to files / a local MailDev container for visual inspection) so the whole notification engine is fully implementable and testable now; pointing it at the real relay is a config change.
+Relay host is postponed (deferred task T0.3), but the backend code confirms the shape: an **unauthenticated internal SMTP relay on port 25** via nodemailer — exactly what the new mailer targets. The mailer is built behind a transport interface with a **dev transport** (writes mail + .ics to files / a local MailDev container for visual inspection) so the whole notification engine is fully implementable and testable now; pointing it at the real relay is a config change.
+
+> Legacy note: the current `sendInvites` builds its ICS with `method=PUBLISH` and addresses the mail **to the organizer only** (attendees appear inside the ICS but never receive the mail) — one of several reasons invites behave poorly today (§3.3 BB-3). The new implementation uses `method=REQUEST` addressed to attendees, with `SEQUENCE` updates and `CANCEL`.
 
 - **Email sending:** nodemailer → the on-prem Exchange **SMTP relay** (submission endpoint, TLS, service account). All notification mail goes through one queued mailer with retry + `notification_log`.
 - **Calendar invites:** RFC 5545 iCalendar MIME parts (`method=REQUEST`) attached to invite mails — Outlook renders these as real meeting requests with Accept/Decline. Session changes send `SEQUENCE`-incremented updates; cancellations send `method=CANCEL`. This covers invites/updates/cancellations **without any Exchange API dependency**.
@@ -264,6 +268,7 @@ NotificationRule {
 ```
 
 - **Defaults shipped:** `registration_created → direct_manager + hr` (satisfies requirement #5 out of the box), `self_registration_requested → direct_manager`, `waitlist_promoted → employee`.
+- **Replaces the legacy Jenkins-cron scripts** (`mail-notification.js` — 30-days-before manager digest, currently failing on invalid SQL (§3.3 BB-2); `course-review.js` — day-after feedback request): both become built-in rule types (`session_reminder(offsetDays=30)` scoped to managers-of-participants, `feedback_request(dayAfterEnd)`), scheduled in-app instead of via Jenkins.
 - **HR UI:** rules table + editor with recipient-selector chips, per-course override panel on the course page ("this course notifies: …"), live preview ("this rule currently resolves to 14 recipients"), test-send button, and the send log.
 - Evaluation happens in the API on domain events; sends are queued, logged, deduplicated per (event, recipient).
 
@@ -364,7 +369,40 @@ Findings from reading the current code; these motivate design choices above and 
 | B-25 | ⚪ | `NgbModule` imported twice (plain + `forRoot()`), `HttpModule` + `HttpClientModule` both loaded; hardcoded `'SIRC'` category filter; leftover `console.log`s and commented-out debug IDs. | `app.module.ts:80-81`, `emp-detail.component.ts:76`, `emp-list.component.ts:161-163` |
 | B-26 | ⚪ | Presentation state (`style` objects, background-image icon stacks) written directly onto shared model instances. | `course-list.component.ts:217-283`, `emp-list.component.ts:131-151` |
 
-The structural bugs (B-2/3/8/11/17) are consequences of the string-keyed data model and client-side joins — they disappear by design in the rewrite. Only the cheap legacy quick wins (S-5, B-1, B-21) are worth fixing in the old app while it runs in parallel.
+The structural bugs (B-2/3/8/11/17) are consequences of the string-keyed data model and client-side joins — they disappear by design in the rewrite.
+
+### 3.3 Backend audit (`backend/`)
+
+#### Security
+
+| # | Sev | Finding | Location |
+|---|---|---|---|
+| SB-1 | 🔴 | **SQL injection on nearly every endpoint**: user input (usernames, course names, search terms, body fields, even the `:year` path segment) is string-interpolated into queries, with `multipleStatements: true` on the pool — an attacker can terminate a statement and run arbitrary SQL. The only "escaping" helper, `sqlizeStr`, is applied to two fields and is itself a no-op for quotes (`str.replace(/'/g, "\'")` replaces `'` with `'`). | `coma-server.js` throughout (e.g., `:90`, `:113`, `:1116`, `:1129`), `connect-server.js:12`, `common.js:108-112` |
+| SB-2 | 🔴 | **No authentication or authorization on any data endpoint** — only `/authorizeUser` checks credentials; everything else (including `removeCourse`, budget updates) is open to anyone on the network, with CORS `Access-Control-Allow-Origin: *`. Server-side confirmation of frontend findings S-3/S-4. | `coma-server.js:22-26` and all routes |
+| SB-3 | 🔴 | **`/sendMail` is an open relay**: unauthenticated endpoint sends arbitrary HTML email with attacker-controlled from/to/subject/body through the corporate relay — internal phishing vector. | `coma-server.js:1185-1197` |
+| SB-4 | 🔴 | **LDAP bind over plain `ldap://`** — employees' AD passwords cross the network to the DC in cleartext (the client-side AES layer with its bundled key adds nothing). | `coma-server.js:199-202` |
+| SB-5 | 🟠 | **Any request slower than 30s kills the whole server**: the timeout middleware calls `process.exit()`, taking down every in-flight request on that PM2 worker — a one-request DoS against any slow endpoint. | `coma-server.js:31-41` |
+| SB-6 | 🟠 | `.env` with DB credentials committed to the repo (placeholders now, but the deployment pattern keeps secrets in the image/repo); backend Dockerfile also sets `NODE_TLS_REJECT_UNAUTHORIZED=0` + npm `strict-ssl false`. | `backend/.env`, `backend/Dockerfile` |
+| SB-7 | 🟡 | Raw SQL error objects/`sqlMessage` returned to clients — leaks schema/query details. | `coma-server.js` error paths throughout |
+
+#### Functional / data-integrity
+
+| # | Sev | Finding | Location |
+|---|---|---|---|
+| BB-1 | 🟠 | **Year-suffixed dynamic columns**: `EducationHours${year}`, `yearlyBudget${year}`, `yearlyTargetHours${year}` are real column names — every January someone must `ALTER TABLE` three tables or these queries error; the year also rides into the column name unvalidated (part of SB-1). | `coma-server.js:55,67,83,299,339,648` |
+| BB-2 | 🟠 | **The monthly manager-notification job cannot work**: its main query is invalid SQL (`AND CO.CourseID ON (…)` — `ON` where `IN` is meant; aliases `CO`/`DM` never defined; `LEFT JOIN emma.users managers ON U.managerSircID = DM.ID`). The job logs an error and exits every run — requirement #5 exists in legacy code but has been silently broken. | `mail-notification.js:32-44` |
+| BB-3 | 🟠 | `sendInvites` builds ICS with `method=PUBLISH` and mails **only the organizer** (`to: fromEmail`); attendees never receive the invite mail. Also crashes (`match(/#\d+$/).index` on null) for course names without a `#N` suffix; `description: 'Testing it!'` left in; success callback never fires (`mailsSent` bookkeeping inverted). | `coma-mailer.js:39-40,109-158` |
+| BB-4 | 🟠 | Hardcoded timezone fudge `.add(3, 'hours')` on session times in manager mails — wrong for half the year (IDT/IST DST). | `mail-notification.js:82` |
+| BB-5 | 🟠 | **Education-hours drift**: hours are stored as running totals incrementally `+=`/`-=`-updated on attendance changes; deleting/re-adding courses or editing participants leaves attendance rows and hour totals inconsistent (e.g., `addCourse` with `exists=true` wipes and re-inserts participants but re-points attendance rows without recomputing hours; `removeCourse` is blocked in the UI for attended courses but the API doesn't enforce it). Totals can silently diverge from `coursedatetimetouser` truth. | `coma-server.js:362-468,647-650,712-715`, `common.js` |
+| BB-6 | 🟡 | `getCourse`/`getCourseAttendance` match `CourseName LIKE "%${name}%"` — substring matching; "Java" returns "JavaScript" rows (server-side root cause of frontend B-8). | `coma-server.js:1038,1058` |
+| BB-7 | 🟡 | `/getUserDetails` selects `u.startDate, u.startDate` (duplicated) and **omits `startDate2`** while its sibling `getUserByUserNameDetails` includes it — rehired employees get wrong dates on the detail path. | `coma-server.js:80` |
+| BB-8 | 🟡 | `common.js` error paths reference `res`, which doesn't exist in that scope — a DB connection error crashes with `ReferenceError` instead of reporting. | `common.js:17,60` |
+| BB-9 | 🟡 | `authorizeUser`'s `catch` block references `err` but the caught variable is `error` — the failure message itself throws (masked as a generic response). | `coma-server.js:224-227` |
+| BB-10 | 🟡 | `/getAllUsers` filters `WHERE u.Status = "working"` — employees who left mid-year vanish from historical views, contradicting the frontend's own start/end-date handling (B-4/B-5). | `coma-server.js:133` |
+| BB-11 | ⚪ | Duplicate route `/getSumEmpPerMonth/:year` registered twice (second definition dead); unused `formidable` dependency; `nodemailer@5` and `ldapjs@1` are EOL versions. | `coma-server.js:870,922`, `package.json` |
+| BB-12 | ⚪ | "Course attended" flag = every session has ≥1 attendance row from *anyone* — a single person marked on each session flags the whole course attended. | `coma-server.js:834-868` |
+
+**Plan impact:** SB-1/SB-2 confirm the API rewrite is a security necessity, not a preference. BB-1/BB-5 add a normalization workstream to the migration plan (§4.9). BB-2/BB-3 mean the new notification engine replaces something already broken, so it can ship without a behavior-parity constraint.
 
 ---
 
@@ -423,6 +461,8 @@ Every additive column defines an explicit default so all historical rows are imm
 | `user_role.role` | derived | `authorizationIdCOMA`: `All→HR`, `PM→Manager`, `None/other→Employee`; Admin/Developer assigned manually post-migration |
 | `notification_rule.*` | seeded defaults | ships the default rules of §2.7 (registration → direct manager + HR, etc.) |
 | `course_lecturer` rows | none for old rows | optional backfill via §4.7; legacy `Lecturer` string remains the fallback display |
+| `education_hours(user,year)` rows | backfilled | copied 1:1 from `coma.users.EducationHours{year}` columns (§4.9); drift vs. attendance table reported, not auto-corrected |
+| `budget_year` / `target_hours_year` rows | backfilled | copied 1:1 from `coma.budget` / `coma.hours` year columns |
 
 Rule of thumb encoded in the migration linter: **no `NOT NULL` column without a `DEFAULT`**, and every derived backfill must be idempotent and covered by a reconciliation assertion.
 
@@ -434,9 +474,29 @@ The legacy `Lecturer` column is one free-text string per course. A backfill tool
 - Ambiguous matches (duplicate employee names, multi-name strings like "Dana & Avi") go to the exceptions list.
 - Output is a reviewed report; **the legacy string column is never modified** and stays the display fallback where no structured assignment exists.
 
-### 4.8 Where the schema knowledge comes from (and its limits)
+### 4.8 Schema knowledge — now confirmed from `backend/` (small gap remains)
 
-The client code in this repo reveals the **API response field names** (`CourseName`, `DateTimeStart`, `sircID`, `EducationHours`, `authorizationIdCOMA`, `managerSircID`, `startDate2/endDate2`, `Lecturer`, `Syllabus`, `TotalHours`, `Price`, `Location`, `IsIn`, `IsMandatory`, `CourseType`, `IsConference`, `Year`, `Creator`, `isTentative`, …) — enough to draft a **provisional schema document** (task T0.5), and that draft is where work starts. It is *not* the schema itself: response keys may be aliases from the backend's SQL, and column **types, keys, indexes, constraints, table names, and any tables not exposed through these endpoints** (budgets, attendance internals, notification data) are invisible from here. The DB engine/version is also not discoverable in this repo — the Dockerfile and compose files here build only the frontend (node builder → httpd), and no service in them references a database. Verification against a real schema dump (or the backend repo) — T0.1 — remains required before migrations M1–M4 are finalized, but no longer blocks starting.
+With the backend in the repo, the schema is known from its SQL:
+
+- **Engine:** MySQL/MariaDB (`mysql` driver; `.env` uses `MARIADB_*` vars). Two schemas: **`emma`** (employee master shared with the Emma app — `users`: `sircID`, `firstName`, `lastName`, `email`, `userName`, `category`, `status`, `startDate/2`, `endDate/2`, `managerSircID`, `authorizationIdCOMA`, `genNum`, `imageUrl`; **read-only for TOMA**) and **`coma`**:
+  - `courses` (`CourseID` PK, `CourseName` = "Name #N YYYY", `Lecturer`, `Syllabus`, `TotalHours`, `Price`, `Notes`, `TextForMail`, `Location`, `IsIn`, `IsMandatory`, `IsConference`, `CourseType`, `Year`, `Creator`, `isTentative`, `participantsAmountEstimated`)
+  - `coursetouser` (`CourseID`, `ID`) — registrations
+  - `coursetodatetime` (`CourseID`, `DateTimeStart`, `DateTimeEnd`) — sessions
+  - `coursedatetimetouser` (`CourseID`, `ID`, `DateTimeStart`, `DateTimeEnd`) — attendance
+  - `users` (`ID`, `EducationHours{year}`…) — **one column per year** (§4.9)
+  - `budget` (`yearlyBudget{year}`…), `hours` (`yearlyTargetHours{year}`…) — same per-year-column pattern
+  - `houersPerMonthPerManager` (`ID`, `recoredDate`, `empCount`, `predictHours`, `presiceHours`) — populated monthly by a stored procedure
+- **Remaining gap (narrowed T0.1):** exact column types/keys/indexes and the bodies of the six stored procedures (`spr_getAllemployeesCoursesWithHouersByManagerID`, `spr_getSumEmpPerMonth`, `spr_getPrecisetHoursPerMonthByManagerUsingOldData`, `spr_getPredictHoursPerMonthByManagerUsingOldData`, `spr_getAmountEmployees`, `spr_monthlyUpdateHoursPerMonthPerManager`). One command supplies all of it: `mysqldump --no-data --routines coma emma > schema.sql`. Needed before migrations are finalized; everything else proceeds meanwhile.
+
+### 4.9 Normalizing the per-year columns (new, driven by §3.3 BB-1/BB-5)
+
+`EducationHours2023`, `EducationHours2024`, `yearlyBudget2024`, `yearlyTargetHours2024` … are literal columns, which means an **annual manual `ALTER TABLE` ritual** and year values injected into SQL as column names. Additionally, education hours are **running totals** updated `+=`/`-=` on attendance events, so they drift from the attendance table over time.
+
+Additive fix, keeping legacy working:
+1. New normalized tables: `education_hours(user_id, year, hours)`, `budget_year(year, amount)`, `target_hours_year(year, hours)` — populated by migration from the existing year columns (reconciliation: every `{table}.{col}{year}` value equals its row).
+2. The **new API reads and writes only the normalized tables**, and *derives* hours from `coursedatetimetouser` where possible instead of trusting the running totals (drift report shows discrepancies for HR/Admin review).
+3. **During parallel run**, a dual-write shim keeps the legacy year columns in sync for attendance changes made through the new API (the legacy app keeps functioning); the legacy columns are frozen at cutover and dropped only in a distant post-decommission cleanup migration.
+4. New years require **zero DDL** from then on.
 
 ---
 
@@ -475,11 +535,11 @@ Requirements #2–#5 (roles, series, history visibility, notifications) are spec
 Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakeholder input (§8); ⏸ marks tasks **deferred by decision** (auth/SMTP — revisit later; interfaces keep everything else unblocked). Everything else is executable by Claude. Legacy app stays untouched except T0.4.
 
 ### WS-0 — Inputs & groundwork
-- [ ] T0.1 ⛔ Obtain a schema dump / backend repo access to **verify** the inferred schema (§4.8) — work starts from the inferred draft (T0.5); this verification gates *finalizing* migrations (T2.7), not starting them
-- [ ] T0.2 ⏸ *Deferred:* auth provider decision (ADFS vs. LDAP bind) — until then DevAuth (§2.5) carries all dev/test
-- [ ] T0.3 ⏸ *Deferred:* Exchange SMTP relay details — until then the dev mail transport (§2.6) carries all dev/test
-- [ ] T0.4 Legacy quick wins on the running app: remove Docker TLS bypasses (S-5), add SPA fallback (B-21), fix `fastName` typo (B-1)
-- [ ] T0.5 Reverse-engineer `docs/legacy-schema.md` from the client code (fields, name conventions, data quirks; clearly marked *unverified*, §4.8); reconcile against the dump when T0.1 lands
+- [ ] T0.1 ⛔ *(narrowed — schema now known from `backend/`, §4.8)* Obtain `mysqldump --no-data --routines coma emma` for exact column types/keys/indexes and the six stored-procedure bodies; gates *finalizing* migrations (T2.9), not starting them
+- [ ] T0.2 ⏸ *Deferred:* auth provider decision (LDAP bind — confirmed in use by the legacy backend, to be moved to `ldaps://` — vs. ADFS) — until then DevAuth (§2.5) carries all dev/test
+- [ ] T0.3 ⏸ *Deferred:* Exchange SMTP relay host (shape confirmed: unauthenticated relay, port 25) — until then the dev mail transport (§2.6) carries all dev/test
+- [ ] T0.4 Legacy quick wins on the running apps — frontend: remove Docker TLS bypasses (S-5), add SPA fallback (B-21), fix `fastName` typo (B-1); backend: remove the `process.exit()` request-timeout kill (SB-5), fix the manager-notification SQL so requirement #5's legacy version works again (BB-2), fix `/getUserDetails` `startDate2` (BB-7), remove/guard the unauthenticated `/sendMail` open relay (SB-3 — unused by the frontend)
+- [ ] T0.5 Write `docs/legacy-schema.md` from the backend SQL (§4.8: tables, relationships, name conventions, per-year-column inventory, data quirks); reconcile against the T0.1 dump when it lands
 - [ ] T0.6 Write the OpenAPI v1 contract for §2.2; set up mock server (MSW/prism) from it
 - [ ] T0.7 Dual CI skeleton: `ci/*.sh` + npm scripts as single source of truth; `.github/workflows/ci.yml` (active now) + mirrored `.gitlab-ci.yml` (Free-tier features only); Jenkinsfile left as-is for legacy deploys
 
@@ -499,7 +559,8 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T2.6 Migration M4: `registration_ext` (status/source/approver), `notification_rule`, `notification_log`
 - [ ] T2.7 Migration M5: `course.delivery_type/platform/platform_url`, `training_provider`, `external_lecturer`, `course_lecturer` — defaults per §4.6
 - [ ] T2.8 Lecturer backfill tool (§4.7): match legacy `Lecturer` strings → employees / grouped external lecturers; exceptions report
-- [ ] T2.9 Full dry-run of M1–M5 on mockup (synthetic + anonymized) with reconciliation report **verifying every §4.6 default/derivation**; package for Admin approval (§4.4) — ⛔ finalization gated on T0.1 schema verification
+- [ ] T2.9 Migration M6 (§4.9): `education_hours` / `budget_year` / `target_hours_year` normalized tables + backfill from year columns + hours-drift report (totals vs. attendance table); dual-write shim design for the parallel-run period
+- [ ] T2.10 Full dry-run of M1–M6 on mockup (synthetic + anonymized) with reconciliation report **verifying every §4.6 default/derivation**; package for Admin approval (§4.4) — ⛔ finalization gated on T0.1 dump
 
 ### WS-3 — Backend API  *(prereq: T0.6, WS-1; runs against mockup DB until cutover)*
 - [ ] T3.1 NestJS scaffold: config, pino logging, problem+json errors, OpenAPI generation, healthcheck
@@ -514,7 +575,8 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T3.9 Reports module: hours (precise/predicted/tentative vs. target, month/quarter), budget (HR-only), compliance — all aggregation in SQL
 - [ ] T3.10 Notification engine: rule model + evaluation on domain events, recipient resolution (direct manager / title / department / HR / course lecturers / custom), queued mailer behind transport interface (**dev transport: MailDev/file** until ⏸ T0.3; nodemailer→SMTP after), templates, `notification_log`, retry/dedupe
 - [ ] T3.11 iCalendar generation: REQUEST/UPDATE(SEQUENCE)/CANCEL parts on invites and session changes; reminder jobs (offsetDays)
-- [ ] T3.12 Admin module: audit-log query API, DB health checks (orphans, convention violations), migrations status + approve endpoints
+- [ ] T3.12 Admin module: audit-log query API, DB health checks (orphan attendance rows, attendance-without-registration, hours drift per §4.9, convention violations), migrations status + approve endpoints
+- [ ] T3.12b In-app scheduler (reminders, feedback requests, monthly stats) replacing the three Jenkins-cron scripts; legacy Jenkins jobs decommissioned at cutover (T5.7)
 - [ ] T3.13 Server-side HTML sanitization for syllabus/mail text (fixes S-8 class)
 - [ ] T3.14 API integration test suite against mockup DB (role matrix tests: every endpoint × 5 roles)
 
@@ -541,7 +603,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T5.1 Production images: nginx web (SPA fallback, headers, non-root), node API (non-root); no TLS bypasses; corporate CA baked in
 - [ ] T5.2 Compose/`production.yaml` for company servers: web + api + redis (if used) alongside legacy; runtime config files
 - [ ] T5.3 Staging deployment against mockup/anonymized DB; Developer-role access enabled here
-- [ ] T5.4 ⛔ Admin approval of M1–M5 on production (via the approval gate) → run migrations → reconciliation report
+- [ ] T5.4 ⛔ Admin approval of M1–M6 on production (via the approval gate) → run migrations → reconciliation report
 - [ ] T5.5 Parallel run: new app live against production DB; legacy app still available; banner cross-links; verify legacy still functions post-migration (additive guarantee)
 - [ ] T5.6 Reconcile reports vs. legacy for the last full year (hours/budget numbers match or divergences explained)
 - [ ] T5.7 ⛔ Cutover decision → legacy switched to read-only → decommission; runbook + admin/HR handover docs
@@ -552,7 +614,9 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Real schema differs from what the client code implies (only the API's SQL knows the truth) | Rework in data layer | T0.1/T0.5 first; Prisma introspection makes the schema explicit before any feature work |
+| Stored-procedure bodies and exact DDL still unseen (six sprocs power the hours dashboards) | Report-parity gaps, migration rework | T0.1 dump (`--no-data --routines`) before finalizing M1–M6; new reports re-derived from base tables and reconciled against legacy output (T5.6) |
+| Education-hours totals already drifted from attendance truth (running `+=` totals, §4.9) | Legacy vs. new report mismatches blamed on the rewrite | Drift report shipped with M6 — discrepancies surfaced to HR/Admin *before* cutover as data corrections, not code bugs |
+| `emma.users` is shared with the Emma app (schema owned elsewhere) | Uncoordinated Emma changes break TOMA | `emma` mapped strictly read-only; integration tests pin the columns TOMA reads; change coordination noted in runbook |
 | Series auto-detection mis-groups courses (fuzzy matches) | Wrong history/compliance data | Confidence-scored report + human review loop (T2.3/T2.4); low-confidence groups require explicit approval; one-off fallback is safe |
 | Legacy app breaks against migrated schema during parallel run | Outage for current users | Additive-only rule (§4.1) + legacy-compat smoke queries in CI (T1.5) + T5.5 verification |
 | LDAP/ADFS specifics unknown until T0.2 | Auth rework | Auth isolated behind one NestJS module with a narrow interface; both strategies implemented behind config |
@@ -566,13 +630,13 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 
 Blocking items (map to ⛔ tasks):
 
-1. **T0.1** — a schema dump (`SHOW CREATE TABLE` / `pg_dump --schema-only`) **or access to the backend repo**. Why this can't come from this repo: the client code only shows API response field names, and this repo's Docker/compose files build only the frontend — no DB engine, version, types, keys, or unexposed tables are discoverable here (§4.8). Work starts from the inferred draft regardless; this input gates *finalizing* the migrations.
+1. **T0.1** *(narrowed — backend code answered the engine/tables question, §4.8)* — one dump: `mysqldump --no-data --routines coma emma > schema.sql`, for exact column types/keys/indexes and the six stored-procedure bodies. Gates finalizing migrations M1–M6 only.
 2. **T2.4** — who reviews the series-mapping and lecturer-backfill reports with me (needs HR domain knowledge of which historic names are "the same course"/"the same lecturer")?
 3. **T5.4 / T5.7** — who holds the Admin role at go-live (migration approval + cutover decision)?
 
 Deferred by decision (revisit later; nothing else blocks on them):
-4. **T0.2** — auth provider: ADFS OIDC vs. direct LDAP bind; AD-group→role mapping. DevAuth carries dev/test meanwhile.
-5. **T0.3** — Exchange SMTP relay host/port + sender service account; whether EWS is reachable. Dev mail transport carries dev/test meanwhile.
+4. **T0.2** — auth provider: direct LDAP bind (confirmed in use today, would move to `ldaps://`) vs. ADFS OIDC; AD-group→role mapping. DevAuth carries dev/test meanwhile.
+5. **T0.3** — Exchange SMTP relay host (unauthenticated port-25 relay confirmed as the pattern) + sender identity; whether EWS is reachable. Dev mail transport carries dev/test meanwhile.
 
 Non-blocking, decide anytime:
 6. Language(s): English only, or Hebrew (RTL) too?
