@@ -63,12 +63,12 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthenticatedGuard)
-  me(@CurrentUser() user: CurrentUserInfo) {
-    const record = this.employees.findById(user.userId);
+  async me(@CurrentUser() user: CurrentUserInfo) {
+    const employee = await this.employees.findById(user.userId);
     return {
       id: user.userId,
-      fullName: record?.fullName ?? '',
-      email: record?.email ?? null,
+      fullName: employee?.fullName ?? '',
+      email: employee?.email ?? null,
       role: user.role,
     };
   }

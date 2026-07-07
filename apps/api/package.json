@@ -16,6 +16,7 @@
     "@toma/contract": "*",
     "@toma/shared": "*",
     "express-session": "^1.18.1",
+    "mysql2": "^3.11.5",
     "nestjs-pino": "^4.3.0",
     "pino-http": "^10.3.0",
     "reflect-metadata": "^0.2.2",

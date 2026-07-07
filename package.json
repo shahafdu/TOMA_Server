@@ -5,7 +5,8 @@
   "description": "TOMA — training management system (monorepo)",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "db"
   ],
   "engines": {
     "node": ">=22 <23"
@@ -18,7 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "contract:gen": "npm run gen -w @toma/contract",
-    "contract:check": "npm run check -w @toma/contract"
+    "contract:check": "npm run check -w @toma/contract",
+    "db:setup": "npm run setup -w @toma/db"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

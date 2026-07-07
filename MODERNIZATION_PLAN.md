@@ -93,7 +93,9 @@ One honest caveat: Angular's all-in-one structure enforces consistency on junior
 | Layer | Choice | Notes |
 |---|---|---|
 | Runtime | **Node.js 22 LTS + NestJS (TypeScript)** | Same runtime family as the existing server → same infra; NestJS gives structure, guards, OpenAPI generation |
-| DB access | **Prisma** with schema **introspected from the existing MySQL/MariaDB** (`prisma db pull`, multi-schema: `coma` + `emma`) | `emma.*` mapped read-only; parameterized queries end SQL injection; `multipleStatements` disabled; migrations authored separately (§4) |
+| DB access | **`mysql2`** with parameterized cross-database SQL (revised from Prisma — see note) | `emma.*` read-only; parameterized queries end SQL injection; `multipleStatements` disabled; migrations authored as plain versioned SQL (§4) |
+
+> **DB-access decision (revised during implementation):** the plan originally specified Prisma, but the legacy schema is **two MySQL databases** (`coma` + `emma`) with cross-database joins, which Prisma's single-schema-per-client model handles poorly. The implementation uses **`mysql2` with parameterized queries** in a thin repository layer that maps legacy rows → the `@toma/shared` domain types (validated with zod). This is faithful to the real backend's cross-DB queries, keeps `emma` read-only, and eliminates the legacy SQL-injection class — without Prisma's multi-schema friction. Kysely was considered; `mysql2` won for simplicity and parity with the existing server.
 | API docs | OpenAPI 3.1 generated from Nest decorators + zod DTOs | Feeds the frontend client generator |
 | Mail | **nodemailer → on-prem Exchange SMTP relay**; iCalendar (RFC 5545) MIME parts for Outlook meeting invites | §2.6 |
 | Jobs | **BullMQ + Redis** (or node-cron if Redis is not allowed on the servers) | Reminder emails, notification queue, monthly stats, Emma-feed staleness monitor |
@@ -569,9 +571,13 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 > NestJS scaffold (T3.1) with DevAuth + sessions (T3.3) and RBAC + budget masking (T3.4) — 11
 > e2e tests green and verified over HTTP from the webpack-bundled artifact; employees/courses
 > are in-memory stubs until Prisma (T3.2). **WS-4 started:** `apps/web` React 19 + Vite + TS
-> scaffold (T4.1) — TanStack Query, router, typed client, login→dashboard flow, RTL tests,
-> build green. Monorepo totals: 4 workspaces, 21 tests, all CI stages green. Next: WS-1 mockup
-> DB + Prisma (T3.2), then MUI design system (T4.2) / orval client (T4.3).
+> scaffold (T4.1) — TanStack Query, router, typed client, login→dashboard flow, RTL tests.
+> **WS-1 + T3.2 done:** mockup **MariaDB** (`db/`) with legacy-shaped schema + synthetic seed;
+> the API now runs on it via a `mysql2` repository layer (revised from Prisma — see §2.1 note),
+> with roles resolved from the DB, multi-year history (req. #4) and the Java/JavaScript collision
+> proven by **14 integration tests**; CI provisions a MariaDB service + seed. Monorepo totals: 5
+> workspaces, 24 tests, all CI stages green. Next: MUI design system (T4.2), orval client (T4.3),
+> real course/registration write modules (T3.6/T3.7), then the migration framework (T1.3+).
 
 ### WS-0 — Inputs & groundwork
 - [ ] T0.1 ⛔ *(narrowed — schema now known from `backend/`, §4.8)* Obtain `mysqldump --no-data --routines coma emma` for exact column types/keys/indexes and the six stored-procedure bodies; gates *finalizing* migrations (T2.9), not starting them
@@ -584,7 +590,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [x] T0.8 Restructure the repo as an npm-workspaces monorepo (§2.10): legacy Angular → `legacy-client/`, `backend/` left in place; workspace root + `packages/shared` (domain model, typecheck/tests green) built; `apps/*`, `db/`, `ci/` to follow ✅
 
 ### WS-1 — Mockup database & migration framework  *(prereq: T0.1, T0.5)*
-- [ ] T1.1 Docker Compose mockup DB (same engine/version) + synthetic seed generator (org tree, multi-year recurring courses, `#N` suffixes, name-collision and orphan-row edge cases)
+- [x] T1.1 Mockup DB (`db/`): MariaDB 10.11 (`docker-compose.yml` for parity), SQL DDL for `coma`+`emma` mirroring the legacy schema (per-year columns) + the new `user_role` table; synthetic seed with an org tree across all 5 roles, a recurring series, a Java/JavaScript name collision, a tentative course, and a prior-year participation. Idempotent `db:setup`; seeded + verified ✅
 - [ ] T1.2 Optional production-snapshot anonymizer (scrub PII, keep distributions)
 - [ ] T1.3 Migration runner: versioned SQL up/down, dry-run mode, reconciliation-check hooks, checksums
 - [ ] T1.4 `migration_approval` gate: refuse un-approved checksums on the production DSN; CLI approve command; audit logging
@@ -604,7 +610,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 
 ### WS-3 — Backend API  *(prereq: T0.6, WS-1; runs against mockup DB until cutover)*
 - [x] T3.1 NestJS scaffold (`apps/api`): config with prod safety rails, pino logging, problem+json filter, zod validation pipe, health, serves its own OpenAPI from `@toma/contract`. Webpack-bundled build (workspace pkgs inlined); boots and verified over HTTP ✅
-- [ ] T3.2 Prisma introspection of the existing schema; repository layer translating legacy shapes (name-keyed rows) → domain model (§2.3) — *currently an in-memory stub directory stands in*
+- [x] T3.2 DB-backed repository layer (`DbService` + `EmployeesRepository`/`CoursesRepository`) translating legacy shapes → domain model against the mockup DB. **Uses `mysql2` with parameterized cross-database SQL rather than Prisma** — the legacy two-schema (`coma`+`emma`) design with cross-DB joins doesn't fit Prisma's single-schema model, and parameterized `mysql2` is simpler, faithful, and closes the legacy SQL-injection class (§3.3 SB-1). Role resolves via `user_role` override → `authorizationIdCOMA`; multi-year history grouped by series (req. #4); Java/JavaScript collision resolved. Verified by 14 integration tests ✅
 - [x] T3.3 Auth: pluggable `AuthProvider` seam + **DevAuth** (non-prod, boot-refused in prod) + express-session httpOnly cookies, session regenerate on login, `/auth/login|logout|me`, guard + `@CurrentUser`. LDAP/ADFS provider slots in when ⏸ T0.2 lands. (CSRF: pending) ✅ core
 - [x] T3.4 RBAC: `@Roles` decorator + guard + **field-level budget masking interceptor** (§2.4 — price/budget stripped for non-HR, verified in e2e); Developer role env-scoped (refused in production) ✅
 - [ ] T3.5 Employees module: directory (paginated/filtered), profile, org subtree (cycle-safe), **multi-year history grouped by series**

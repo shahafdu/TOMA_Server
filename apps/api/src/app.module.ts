@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from './config/config.module.js';
+import { DbModule } from './db/db.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { EmployeesModule } from './employees/employees.module.js';
 import { CoursesModule } from './courses/courses.module.js';
@@ -16,6 +17,7 @@ import { OpenApiController } from './openapi/openapi.controller.js';
         autoLogging: process.env.NODE_ENV !== 'test',
       },
     }),
+    DbModule,
     AuthModule,
     EmployeesModule,
     CoursesModule,

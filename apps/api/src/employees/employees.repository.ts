@@ -1,73 +1,151 @@
 import { Injectable } from '@nestjs/common';
-import type { Employee, EmployeeId } from '@toma/shared';
-import { type EmployeeRecord, toEmployee } from './employee.record.js';
+import {
+  type Employee,
+  Employee as EmployeeSchema,
+  type PriorParticipation,
+  PriorParticipation as PriorParticipationSchema,
+  type Role,
+  roleFromLegacyAuthorization,
+} from '@toma/shared';
+import type { RowDataPacket } from 'mysql2';
+import { DbService } from '../db/db.service.js';
+import { normalizeCourseName } from '../util/course-name.js';
 
-/**
- * In-memory stub directory used until the Prisma-backed `emma.users` projection lands (T3.2).
- * Seeds one employee per role plus a small manager→report tree so RBAC and team views are
- * demonstrable and testable end-to-end.
- */
+interface EmployeeRow extends RowDataPacket {
+  sircID: number;
+  userName: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  managerSircID: number | null;
+  teamName: string | null;
+  workTitle: string | null;
+  rank: number | null;
+  category: string | null;
+  status: string;
+  startDate: string | null;
+  startDate2: string | null;
+  endDate: string | null;
+  endDate2: string | null;
+  imageUrl: string | null;
+  authorizationIdCOMA: number;
+  roleOverride: string | null;
+}
+
+interface HistoryRow extends RowDataPacket {
+  CourseID: number;
+  CourseName: string;
+  Year: number;
+  attended: number;
+}
+
+const EMPLOYEE_SELECT = `
+  SELECT u.sircID, u.userName, u.firstName, u.lastName, u.email, u.managerSircID, u.teamName,
+         u.workTitle, u.\`rank\`, u.category, u.status, u.startDate, u.startDate2, u.endDate,
+         u.endDate2, u.imageUrl, u.authorizationIdCOMA, r.role AS roleOverride
+  FROM emma.users u
+  LEFT JOIN coma.user_role r ON r.sircID = u.sircID`;
+
+/** Reads employees from `emma.users` (read-only) and role overrides from `coma.user_role`. */
 @Injectable()
 export class EmployeesRepository {
-  private readonly records: EmployeeRecord[] = seed();
+  constructor(private readonly db: DbService) {}
 
-  findByUsername(username: string): EmployeeRecord | undefined {
-    return this.records.find((r) => r.username === username);
+  /** Resolve a login to the identity DevAuth / the session needs. */
+  async authLookup(
+    username: string,
+  ): Promise<{ userId: string; role: Role; fullName: string; email: string | null } | null> {
+    const rows = await this.db.query<EmployeeRow>(`${EMPLOYEE_SELECT} WHERE u.userName = ?`, [
+      username,
+    ]);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      userId: String(row.sircID),
+      role: resolveRole(row),
+      fullName: `${row.firstName} ${row.lastName}`,
+      email: row.email,
+    };
   }
 
-  findById(id: string): EmployeeRecord | undefined {
-    return this.records.find((r) => r.id === (id as EmployeeId));
+  async findById(id: string): Promise<Employee | null> {
+    const rows = await this.db.query<EmployeeRow>(`${EMPLOYEE_SELECT} WHERE u.sircID = ?`, [id]);
+    return rows[0] ? mapEmployee(rows[0]) : null;
   }
 
-  list(filter?: { query?: string; managerId?: string }): Employee[] {
-    let rows = this.records;
-    if (filter?.managerId) {
-      rows = rows.filter((r) => r.managerId === (filter.managerId as EmployeeId));
+  async list(filter: { query?: string; managerId?: string }): Promise<Employee[]> {
+    const clauses = ["u.status = 'working'"];
+    const params: unknown[] = [];
+    if (filter.managerId) {
+      clauses.push('u.managerSircID = ?');
+      params.push(filter.managerId);
     }
-    if (filter?.query) {
-      const q = filter.query.toLocaleLowerCase();
-      rows = rows.filter((r) => r.fullName.toLocaleLowerCase().includes(q));
+    if (filter.query) {
+      clauses.push("CONCAT(u.firstName, ' ', u.lastName) LIKE ?");
+      params.push(`%${filter.query}%`);
     }
-    return rows.map(toEmployee);
+    const rows = await this.db.query<EmployeeRow>(
+      `${EMPLOYEE_SELECT} WHERE ${clauses.join(' AND ')} ORDER BY u.firstName, u.lastName`,
+      params,
+    );
+    return rows.map(mapEmployee);
+  }
+
+  /** Multi-year training history grouped by course series (requirement #4). */
+  async history(id: string): Promise<PriorParticipation[]> {
+    const rows = await this.db.query<HistoryRow>(
+      `SELECT c.CourseID, c.CourseName, c.Year,
+              EXISTS(
+                SELECT 1 FROM coma.coursedatetimetouser a
+                WHERE a.CourseID = c.CourseID AND a.ID = ?
+              ) AS attended
+       FROM coma.coursetouser cu
+       JOIN coma.courses c ON c.CourseID = cu.CourseID
+       WHERE cu.ID = ?
+       ORDER BY c.Year DESC, c.CourseName`,
+      [id, id],
+    );
+
+    // Assign a synthetic, stable series id per distinct normalized title until the real
+    // course_series table lands (plan §4.2).
+    const seriesIds = new Map<string, number>();
+    return rows.map((row) => {
+      const title = normalizeCourseName(row.CourseName);
+      if (!seriesIds.has(title)) seriesIds.set(title, seriesIds.size + 1);
+      return PriorParticipationSchema.parse({
+        courseId: row.CourseID,
+        seriesId: seriesIds.get(title),
+        year: row.Year,
+        title,
+        status: 'registered',
+        attended: Boolean(row.attended),
+      });
+    });
   }
 }
 
-function record(
-  id: string,
-  username: string,
-  role: EmployeeRecord['role'],
-  firstName: string,
-  lastName: string,
-  managerId: string | null,
-  extra: Partial<EmployeeRecord> = {},
-): EmployeeRecord {
-  return {
-    id: id as EmployeeId,
-    username,
-    role,
-    firstName,
-    lastName,
-    fullName: `${firstName} ${lastName}`,
-    email: `${username}@example.com`,
-    managerId: managerId as EmployeeId | null,
-    department: extra.department ?? 'Engineering',
-    title: extra.title ?? null,
-    rank: extra.rank ?? null,
-    category: 'SIRC',
-    status: 'working',
-    startDate: '2020-01-01',
-    endDate: null,
-    avatarUrl: null,
-  };
+function resolveRole(row: EmployeeRow): Role {
+  if (row.roleOverride) return row.roleOverride as Role;
+  return roleFromLegacyAuthorization(row.authorizationIdCOMA);
 }
 
-function seed(): EmployeeRecord[] {
-  return [
-    record('1', 'alice', 'hr', 'Alice', 'Cohen', null, { title: 'HR Lead', department: 'HR' }),
-    record('2', 'bob', 'manager', 'Bob', 'Levi', '1', { title: 'Team Lead', rank: 3 }),
-    record('3', 'carol', 'employee', 'Carol', 'Mizrahi', '2'),
-    record('4', 'dave', 'employee', 'Dave', 'Peretz', '2'),
-    record('5', 'admin', 'admin', 'Ada', 'Admin', null, { department: 'IT' }),
-    record('6', 'devuser', 'developer', 'Dana', 'Dev', null, { department: 'IT' }),
-  ];
+function mapEmployee(row: EmployeeRow): Employee {
+  const startRaw = row.startDate2 ?? row.startDate;
+  const endRaw = row.startDate2 ? row.endDate2 : row.endDate;
+  return EmployeeSchema.parse({
+    id: String(row.sircID),
+    firstName: row.firstName,
+    lastName: row.lastName,
+    fullName: `${row.firstName} ${row.lastName}`,
+    email: row.email,
+    managerId: row.managerSircID != null ? String(row.managerSircID) : null,
+    department: row.teamName ? row.teamName.replace(/^\((.*)\)$/, '$1') : null,
+    title: row.workTitle,
+    rank: row.rank,
+    category: row.category,
+    status: row.status,
+    startDate: startRaw ? startRaw.slice(0, 10) : null,
+    endDate: endRaw ? endRaw.slice(0, 10) : null,
+    avatarUrl: row.imageUrl,
+  });
 }

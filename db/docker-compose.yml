@@ -1,0 +1,16 @@
+# Mockup database for local development and CI parity. Same engine as production (MariaDB).
+# Bring up: `docker compose -f db/docker-compose.yml up -d`, then `npm run db:setup`.
+services:
+  mockdb:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - '3306:3306'
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    tmpfs:
+      - /var/lib/mysql # ephemeral — this is a disposable test database

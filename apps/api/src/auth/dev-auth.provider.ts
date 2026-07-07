@@ -12,13 +12,6 @@ export class DevAuthProvider implements AuthProvider {
   constructor(private readonly employees: EmployeesRepository) {}
 
   async authenticate({ username }: Credentials): Promise<AuthenticatedIdentity | null> {
-    const user = this.employees.findByUsername(username);
-    if (!user) return null;
-    return {
-      userId: user.id,
-      role: user.role,
-      fullName: user.fullName,
-      email: user.email,
-    };
+    return this.employees.authLookup(username);
   }
 }

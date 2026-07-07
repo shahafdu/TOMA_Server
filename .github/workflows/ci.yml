@@ -14,6 +14,28 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      # Admin connection used to (re)create + seed the mockup DB.
+      MOCKDB_HOST: 127.0.0.1
+      MOCKDB_ROOT_PASSWORD: root
+      # App connection (the seed creates the `toma` user); matches the config defaults.
+      MARIADB_HOST: 127.0.0.1
+      MARIADB_USER: toma
+      MARIADB_PASSWORD: toma
+      MARIADB_DATABASE: coma
+
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +46,9 @@ jobs:
 
       - name: Install
         run: ./ci/install.sh
+
+      - name: Set up mockup database
+        run: ./ci/db-setup.sh
 
       - name: Checks (format, lint, typecheck, contract, test, build)
         run: ./ci/checks.sh
