@@ -1,0 +1,13 @@
+
+
+node_modules/
+build/
+
+.git/
+.dockerignore
+Dockerfile
+
+__pycache__/
+
+.vs
+
