@@ -1,0 +1,91 @@
+em {
+  float:right;
+  color:#E05C65;
+  padding-left:10px;
+}
+
+.fa-user-times {
+  color: red;
+  font-size: 16px;
+  padding-left: 5px;
+  cursor: pointer;
+}
+
+.partic-wrapper {
+  margin: 10px;
+  border: solid 2px #4e5d6c;
+  padding: 5px;
+}
+.participant {
+  background-color: #4e5d6c;
+  margin: 5px;
+  padding: 5px;
+  display: inline-block;
+  font-size: 12px;
+}
+
+.participant.newly-added {
+  background-color: #5cb85c;
+  border: 2px solid #449d44;
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 5px #5cb85c;
+  }
+  to {
+    box-shadow: 0 0 10px #5cb85c, 0 0 15px #5cb85c;
+  }
+}
+
+/deep/ ngb-datepicker .custom-select{
+  color: black;
+}
+
+.error input, .error select, .error textarea, /deep/ .error .nw-editor {
+  background-color:#E3C3C5;
+}
+
+.error ::-webkit-input-placeholder {
+  color: #999;
+}
+
+.error :-moz-placeholder {
+  color: #999;
+}
+
+.error ::-moz-placeholder {
+  color: #999;
+}
+
+.error :ms-input-placeholder {
+  color: #999;
+}
+
+.mat-active, .mat-option:hover {
+  background-color: #999 !important;
+}
+
+.fa-calendar-times {
+  color: red;
+  font-size: 16px;
+  padding-left: 20px;
+  cursor: pointer;
+}
+
+.input-group-addon.plus {
+  background-color: #2b3e50;
+  padding-top: 35px;
+  color: rgb(4, 197, 4);
+  font-size: 20px;
+}
+
+.fa-plus {
+  cursor: pointer;
+}
+
+.form-control[disabled] {
+  background-color: darkgray;
+}
+

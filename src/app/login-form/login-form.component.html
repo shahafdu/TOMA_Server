@@ -1,0 +1,38 @@
+<div style="text-align:center">
+  <img alt="logo" src='coma/assets/app_logo.png' style='width: 300px'>
+  <h1>
+    Welcome to Training Operation Management App
+  </h1>
+</div>
+
+<form id='form1' #form="ngForm" (ngSubmit)="submitForm()" validate class="form" [formGroup]='form1'><br>
+  <mat-form-field>
+    <input matInput required type="text" name="userName" formControlName='username'>
+    <mat-label class='placeholder'>
+      <mat-icon>face</mat-icon> Username
+    </mat-label>
+    <mat-error>
+      User Name is <strong>required</strong>
+    </mat-error>
+  </mat-form-field>
+  <br> <br>
+  <mat-form-field>
+    <input matInput type="password" required name="password" formControlName="password">
+    <mat-placeholder class='placeholder'>
+      <mat-icon>lock_open</mat-icon>Password
+    </mat-placeholder>
+    <mat-error>
+      Password is <strong>required</strong>
+    </mat-error>
+  </mat-form-field>
+
+  <br> <br>
+  <div class="text-center">
+    <button type="submit" [disabled]="form1.invalid" class="btn btn-primary" name="action">Login</button>
+    <mat-error>
+      {{ errorMessage }}
+    </mat-error>
+
+  </div>
+
+</form>

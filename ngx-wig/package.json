@@ -1,0 +1,63 @@
+{
+  "_from": "ngx-wig",
+  "_id": "ngx-wig@1.6.0",
+  "_inBundle": false,
+  "_integrity": "sha512-ogY1TgR27dhhtNVESauyuCC7dIOzWCRP64Y+zYBhsku8PulzsGktv8C+bxWhVZoGHivQU6sFTcXlzIfj3syQ4Q==",
+  "_location": "/ngx-wig",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "ngx-wig",
+    "name": "ngx-wig",
+    "escapedName": "ngx-wig",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/ngx-wig/-/ngx-wig-1.6.0.tgz",
+  "_shasum": "a2668ee26b883af6b8c6d277b0c459f25e553ce5",
+  "_spec": "ngx-wig",
+  "_where": "C:\\Work\\Angular\\COMA_Client",
+  "author": {
+    "name": "Stepan Suvorov",
+    "email": "stevermeister@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/stevermeister/ngx-wig/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "ngx-wig =====",
+  "engines": {
+    "node": ">=6.9.5",
+    "npm": ">=3.10.7",
+    "yarn": ">=1.0.2"
+  },
+  "homepage": "https://github.com/stevermeister/ngx-wig#readme",
+  "jsnext:main": "ngx-wig.js",
+  "keywords": [
+    "angular",
+    "WYSIWYG",
+    "editor"
+  ],
+  "license": "MIT",
+  "main": "ngx-wig.umd.js",
+  "module": "ngx-wig.js",
+  "name": "ngx-wig",
+  "peerDependencies": {
+    "@angular/core": "^6.0.0",
+    "rxjs": "^6.2.1",
+    "zone.js": "^0.8.14"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stevermeister/ngx-wig.git"
+  },
+  "typings": "ngx-wig.d.ts",
+  "version": "1.6.0"
+}

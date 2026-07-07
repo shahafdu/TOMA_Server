@@ -1,0 +1,51 @@
+.nav.navbar-nav {
+  font-size: 15px;
+}
+
+li > a.active {
+  color: #F97924;
+}
+
+li.active > a {
+  color: #F97924;
+}
+
+a.active {
+  color: #F97924;
+}
+
+#searchForm {
+  /*margin-right: 100px;*/
+}
+
+@media (max-width: 1200px) {
+  #searchForm {
+    display: none;
+  }
+}
+
+.log-out {
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.dropdown-menu {
+  background-color: #2a2f33;
+}
+
+.dropdown-links {
+  color: #ebebeb;
+  padding: 10px;
+  line-height: 30px;
+}
+
+
+.middle{
+position: relative;
+top: 40%;
+transform: translateY(40%);
+}
+
+img.active{
+  background-color: #F97924;
+}

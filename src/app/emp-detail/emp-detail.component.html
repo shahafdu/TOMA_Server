@@ -1,0 +1,72 @@
+<div class="container">
+
+  <div class="row">
+    <div class="col-md-11">
+      <h2>{{user?.fullName | titlecase}}</h2>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class='col-md-2'>
+      <img [src]="user?.imageUrl" alt='User Image' width='160px' onerror="this.src='coma/assets/Blank_Person.jpg'">
+    </div>
+    <div class="col-md-4">
+      <div style='cursor: pointer;' [routerLink]="['/employees/' + user?.managerID]"><strong>Manager:</strong> {{user?.managerFullName}}</div>
+      <div><strong>Total Hours:</strong> {{user?.hours}}</div>
+      <div *ngIf='teamAvgHours !== null'><strong>Average Hours Of Team (for TLs):</strong> <br>{{teamAvgHours | number}} (regarding only for full time employees)</div>
+      <div *ngIf='teamAvgHours !== null'><strong>Team Members:</strong><br>
+        <div class="team" *ngFor='let member of teamArray' [routerLink]="['/employees/' + member?.ID]">{{member?.fullName}} - {{member.hours}}</div>
+      </div>
+      <div *ngIf='teamArray!==[] && teamArray.length > 0'>
+        <div class="navbar-form navbar-left">
+          <select class="btn btn-excel small-font" [(ngModel)]="year" name="year">
+            <option *ngFor='let year of yearArray' [value]="year">{{year}} </option>
+          </select>
+        </div>
+        <button class="btn btn-excel small-font" data-toggle="modal" data-target="#chooseFields" (click)='exportToExcel()'>
+           Export my employees
+          <img src='../../assets/excel.svg' data-toggle="tooltip" data-placement="bottom" title="Export to excel" width='25px'>
+        </button>
+      </div>
+    </div>
+    <div class='col-md-6 full-overlay' [style]="sanitizer.bypassSecurityTrustStyle('--progress: ' + (100 - 86*percent) + '%;')"></div>
+  </div>
+
+  <hr>
+
+
+
+  <div class="row" style="margin-bottom:10px">
+    <div class="col-md-3">
+      <h3 style="margin:0">This Year's Courses</h3>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class='col-md-4' *ngFor='let courseList of yearCourses | keyvalue'>
+      <h4>{{courseList.key}}</h4>
+      <coma-collapsible-well-list [numOfCols]='1' [itemList]='courseList.value' [titleField]="'name'">
+        <ng-template let-item="item">
+          <div well-body>
+            <h5>Education Hours: {{item.totalHours}}</h5>
+          </div>
+        </ng-template>
+      </coma-collapsible-well-list>
+    </div>
+  </div>
+
+  <div class="row" style="margin-bottom:10px">
+    <div class="col-md-3">
+      <h3 style="margin:0">Other Courses</h3>
+    </div>
+  </div>
+  <div class='well'>
+    <div class='row'>
+      <div class="col-md-3" *ngFor='let course of otherCourses'>
+        <button mat-raised-button disableRipple class='name-thumbnail'>{{course}}</button>
+      </div>
+    </div>
+  </div>
+
+
+</div>

@@ -1,0 +1,25 @@
+.container {
+  padding-left:20px; padding-right:20px;
+}
+
+.event-image {
+  height: 100px;
+}
+
+a {
+  cursor:pointer;
+}
+
+.btn-default {
+  margin-left: 20px;
+  border-radius: 10%;
+}
+
+.fa-trash-alt {
+  color: red;
+}
+
+.textForMailWrapper {
+  background-color: white;
+  color: black;
+}

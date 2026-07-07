@@ -1,0 +1,83 @@
+<div class="row">
+    <div class="col-md-5">
+      <h4>
+        Yearly Hours Goal: {{yearlyTargetHours}}
+        <button class='btn-default' (click)='editable = !editable'><i class='fa fa-edit' data-toggle="tooltip" data-placement="bottom" title="Edit Budget"></i></button>
+      </h4>
+      <form id="budget" class="form-inline" *ngIf="editable">
+        <div class="form-group" [ngClass]="{'error': hours.invalid || !(yearlyTargetHours > 0)}">
+          <div class="input-group">
+            <em *ngIf="!(yearlyTargetHours > 0)">Hours must be positive</em>
+            <input required [(ngModel)]="yearlyTargetHours" name="hours" type="number" class="form-control" placeholder="hours..." #hours="ngModel">
+            <div class="input-group-addon btn btn-default" (click)="saveBudget()">Save</div>
+          </div>
+        </div>
+      </form>  
+      <h4>Yearly Hours (completed + scheduled): {{yearly_predict | number}}</h4>
+      <h4>Yearly Hours Predicted (as of today): {{yearly_predict_includedCurMonth | number}}</h4>
+      <h4>Yearly Hours Precise (as of today): {{yearly_prescise_includedCurMonth | number}}</h4>
+      <h4>Yearly Hours Tentative Plan: {{yearly_tentative | number}}</h4>
+      <h4>Monthly Hours Target: {{yearlyTargetHours / 12 | number}}</h4>
+      <h4>Monthly Hours Predicted (as of today): {{monthlyHoursPredictedAvarage_includedCurMonth | number}}</h4>
+      <h4>Monthly Hours Precise (as of today): {{monthlyHourspreciseAvarage_includedCurMonth | number}}</h4>
+      <h4>Monthly Hours Tentative Plan: {{monthly_tentative | number}}</h4>
+    </div>
+
+    <div class="col-md-7">
+      <div style="display: block;">
+        <canvas baseChart width="400" height="300" [datasets]="lineChartData" [labels]="lineChartLabels" [options]="lineChartOptions" 
+          [legend]="lineChartLegend" [chartType]="lineChartType" style="background-color: #2a2f33"  [colors]="barChartColors"></canvas>
+      </div>
+    </div>
+  </div>
+  <br>
+  <div class="row">
+    <div >
+      <table class="table table-bordered fixed-row-size">
+        <thead class="table-header fixed-row-size">
+          <tr>
+            <th>Quarter:</th>
+            <th *ngFor="let i of [1,2,3,4]">{{i}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th class="table-header">Average:</th>
+            <td *ngFor="let i of quarterlyAvgHoursForTableDisplay">{{i | number:'1.0-2'}}</td>
+          </tr>
+          <tr>
+            <th class="table-header">Total:</th>
+            <td *ngFor="let i of quarterlyTotalHoursForTableDisplay">{{i | number:'1.0-0'}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+    
+    <div class="row">
+      <div >
+        <table class="table table-bordered fixed-row-size">
+          <thead class="table-header">
+            <tr>
+              <th class="table-header-width">Month:</th>
+              <th *ngFor="let i of [0,1,2,3,4,5,6,7,8,9,10,11]">{{i+1}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="table-header">Average(precise):</th>
+              <td *ngFor="let i of monthlyHourspreciseToPresent">{{i | number:'1.0-2'}}</td>
+            </tr>
+            <tr>
+              <th class="table-header">Average(predicted):</th>
+              <td *ngFor="let i of monthlyHoursPredictedToPresent">{{i | number:'1.0-2'}}</td>
+            </tr>
+            <tr>
+              <th class="table-header">Total:</th>
+              <td *ngFor="let i of monthlyHoursprecise">{{i | number:'1.0-0'}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+

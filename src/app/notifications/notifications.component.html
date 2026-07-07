@@ -1,0 +1,9 @@
+<div class="notif-wrapper">
+<div *ngFor="let notification of notifications"
+  (click)="sendMail(notification)"
+  class="notif"
+  [class.error-notif]="notification.isError"
+  [class.msg-notif]="!notification.isError">
+  <p>{{ notification.notification }}</p>
+</div>
+</div>

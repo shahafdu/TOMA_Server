@@ -1,0 +1,70 @@
+.container {
+  padding-left:20px; padding-right:20px;
+}
+
+.event-image {
+  height: 100px;
+}
+
+a {
+  cursor:pointer;
+}
+
+.btn-default {
+  margin-left: 20px;
+  border-radius: 10%;
+}
+
+.crop {
+  overflow: hidden;
+}
+
+.crop img {
+  height: 400px;
+}
+
+.full-overlay {
+  position: relative;
+  z-index: 1;
+  height:400px;
+  width:400px;
+  text-align: center;
+  padding:40px;
+  background:url("../../coma/assets/tree.jpg") no-repeat;
+  background-size: cover;
+}
+.full-overlay:after{
+  background:url("../../coma/assets/tree_black.jpg");
+  background-size: 400px 400px;
+  content: "";
+  width: 400px;
+  height: var(--progress);
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+}
+
+.name-thumbnail {
+  margin: 5px;
+  width: 100%;
+  text-align: left;
+  background-color: gray;
+  cursor: default;
+ }
+
+ .team {
+   padding-left: 15px;
+   cursor: pointer;
+ }
+
+ .btn-excel {
+   color: #ffffff; 
+   background-color: #4e5d6c; 
+   border-color: transparent;
+   border-radius: 10%;
+   margin-top: 5px;
+   border-radius: 10%;
+ }

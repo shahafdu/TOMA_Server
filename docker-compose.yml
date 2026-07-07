@@ -1,0 +1,13 @@
+version: '3.3'
+
+services:
+  coma_client:
+    image: localhost:5000/cm_client:frontend
+    build:
+      cache_from: [localhost:5000/cm_client:frontend]
+      context: .
+    environment:
+      - HOME=/tmp
+    user: ${USER_UID}:${USER_GID}
+    ports:
+      - 8080:80

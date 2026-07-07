@@ -1,0 +1,34 @@
+import { ElementRef, EventEmitter, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { ControlValueAccessor } from '@angular/forms';
+import { NgxWigToolbarService, TButton } from './ngx-wig-toolbar.service';
+export declare class NgxWigComponent implements OnInit, OnChanges, ControlValueAccessor {
+    private _ngWigToolbarService;
+    content: string;
+    placeholder: string;
+    buttons: string;
+    disabled: boolean;
+    isSourceModeAllowed: boolean;
+    contentChange: EventEmitter<{}>;
+    ngxWigEditable: ElementRef;
+    editMode: boolean;
+    container: HTMLElement;
+    toolbarButtons: TButton[];
+    hasFocus: boolean;
+    iconsTheme: string;
+    constructor(_ngWigToolbarService: NgxWigToolbarService);
+    toggleEditMode(): void;
+    execCommand(command: string, options: string): boolean;
+    ngOnInit(): void;
+    onContentChange(newContent: string): void;
+    ngOnChanges(changes: SimpleChanges): void;
+    onTextareaChange(newContent: string): void;
+    writeValue(value: any): void;
+    shouldShowPlaceholder(): boolean;
+    private pasteHtmlAtCaret(html);
+    registerOnChange(fn: any): void;
+    registerOnTouched(fn: () => void): void;
+    private propagateChange;
+    propagateTouched: () => void;
+    onBlur(): void;
+    setDisabledState(isDisabled: boolean): void;
+}

@@ -1,0 +1,257 @@
+<div class="col-md-12">
+  <h3>{{title}}</h3>
+  <div class="col-md-6">
+    <div class="input-group-addon">
+      <mat-slide-toggle (change)="onToggle($event)" [checked]="isTentative" >
+        {{isTentative ? 'Tentative' : 'regular'}}</mat-slide-toggle>
+    </div>
+  </div>
+</div>
+<form [formGroup]="editCourseForm" *ngIf="!isTentative"
+  (ngSubmit)="saveCoursePressed(editCourseForm.getRawValue())" autocomplete="off">
+  <div class="row">
+    <div class="col-md-6">
+      <div class="form-group"
+        [ngClass]="{'error': name.invalid && ((name.dirty && name.touched) || name.hasError('maxlength')) }">
+        <label for="courseName">Course Name:</label>
+        <em *ngIf="name.invalid && name.dirty && name.hasError('required')">Required</em>
+        <em *ngIf="name.invalid && name.dirty && name.touched && name.hasError('pattern')">Name must end with #number
+          and can't contain these characters: /?#%"\</em>
+          <em *ngIf="name.invalid && name.dirty && name.hasError('notUnique')">Course name already exists</em>
+        <em *ngIf="name.invalid && name.hasError('maxlength')">Course name can have up to 100 characters</em>
+        <input formControlName="name" id="courseName" type="text" class="form-control"
+          placeholder="course name... (required)" />
+      </div>
+      <div class="form-group" [ngClass]="{'error': lecturer.invalid && lecturer.dirty }">
+        <label for="lecturer">Lecturer/Supplier:</label>
+        <em *ngIf="lecturer.invalid && lecturer.dirty  && lecturer.hasError('required')">Required</em>
+        <em *ngIf="lecturer.invalid && lecturer.dirty && lecturer.hasError('pattern')">Invalid characters</em>
+        <em *ngIf="lecturer.invalid && lecturer.hasError('maxlength')">Lecturer can have up to 45 characters</em>
+        <input formControlName="lecturer" id="lecturer" type="text" class="form-control"
+          placeholder="lecturer... (required)" />
+      </div>
+      <div class='form-row'>
+        <div class="form-group col-md-5" [ngClass]="{'error': date.invalid && date.touched }">
+          <label for="date">Date:</label>
+          <em
+            *ngIf="date.invalid && (date.touched || timeStart.touched || timeEnd.touched) && date.hasError('dateEmpty')">Date/time
+            are required</em>
+          <em *ngIf="date.invalid && date.touched && date.hasError('matDatepickerParse')">Invalid Date</em>
+          <em *ngIf="!timeStartParsed.isValid()">Invalid Start Time</em>
+          <em *ngIf="!timeEndParsed.isValid()">Invalid End Time</em>
+          <em *ngIf="duplicateDate">Overlapping Hours</em>
+          <div class="input-group">
+            <div class="input-group-addon" (click)="picker.open()">
+              <i class="fa fa-calendar"></i>
+            </div>
+            <input formControlName="date" matInput [matDatepicker]="picker" placeholder="Choose a date"
+              class="form-control">
+            <mat-datepicker #picker></mat-datepicker>
+          </div>
+        </div>
+        <div class="form-group col-md-3" [ngClass]="{'error': !timeStartParsed.isValid() }">
+          <label for="timeStart">Time Start:</label>
+          <input formControlName="timeStart" id="timeStart" type="text" class="form-control" placeholder="HH:MM" />
+        </div>
+        <div class="form-group col-md-4" [ngClass]="{'error': !timeEndParsed.isValid()}">
+          <div class='input-group'>
+            <label for="timeEnd">Time End:</label>
+            <input formControlName="timeEnd" id="timeEnd" type="text" class="form-control" placeholder="HH:MM" />
+            <div class="input-group-addon plus" (click)="addDateTime()">
+              <i class="fa fa-plus"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class='form-row' *ngFor='let dateTime of dateTimeList; let i = index;'>
+        <div class="form-group col-md-6" [ngStyle]="{'color': i == duplicateIndex? 'red' : 'white'}">
+          {{dateTime.dateTimeStart | date:'dd/MM/yyyy'}}
+        </div>
+        <div class="form-group col-md-3">
+          {{dateTime.dateTimeStart | date:'HH:mm'}}
+        </div>
+        <div class="form-group col-md-3 date-time">
+          {{dateTime.dateTimeEnd | date:'HH:mm'}}
+          <i class="fa fa-calendar-times" (click)='removeDateInInd(i)'></i>
+        </div>
+      </div>
+      <div class="form-group" [ngClass]="{'error': totalHours.invalid && totalHours.dirty }">
+        <label for="totalHours">Duration:</label>
+        <div class='input-group'>
+          <em *ngIf="totalHours.invalid && totalHours.dirty  && totalHours.hasError('required')">Required</em>
+          <em *ngIf="totalHours.invalid && totalHours.dirty && totalHours.hasError('pattern')">Must be a number</em>
+          <input formControlName="totalHours" id="totalHours" type="text" class="form-control"
+            placeholder="duration...  (required)" />
+          <div class="input-group-addon">
+            <mat-slide-toggle formControlName="isMandatory" name="isMandatory">{{isMandatory.value ? 'Mandatory' : 'Not
+              Mandatory'}}</mat-slide-toggle>
+          </div>
+          <div class="input-group-addon">
+            <mat-slide-toggle formControlName="courseType" name="courseType">{{courseType.value ? 'Enrichment' :
+              'Technical'}}</mat-slide-toggle>
+          </div>
+        </div>
+      </div>
+      <div class="form-group" [ngClass]="{'error': price.invalid && price.dirty }">
+        <label for="price">Price (<i class="fa fa-dollar"></i>):</label>
+        <em *ngIf="price.invalid && price.dirty  && price.hasError('required')">Required</em>
+        <em *ngIf="price.invalid && price.dirty && price.hasError('pattern')">Must be a number</em>
+        <input formControlName="price" id="price" type="text" class="form-control" placeholder="price...  (required)" />
+      </div>
+      <div class="form-group" [ngClass]="{'error': venue.invalid }">
+        <label for="venue">Location:</label>
+        <div class='input-group'>
+          <em *ngIf="venue.invalid && venue.hasError('maxlength')">Location can have up to 45 characters</em>
+          <em *ngIf="venue.invalid && venue.dirty && venue.hasError('pattern')">Invalid character (")</em>
+          <input formControlName="venue" id="venue" type="text" class="form-control" placeholder="location..." />
+          <div *ngIf="!isIn.value" class="input-group-addon">
+            <mat-slide-toggle formControlName="isConference" name="isConference">{{isConference.value ? 'Conference' :
+              'Not Conference'}}</mat-slide-toggle>
+          </div>
+          <div class="input-group-addon">
+            <mat-slide-toggle formControlName="isIn" name="isIn">{{isIn.value ? 'In' : 'Out'}}</mat-slide-toggle>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="form-group" [ngClass]="{'error': syllabus.invalid && syllabus.dirty }">
+        <label for="syllabus">Syllabus:</label>
+        <em *ngIf="syllabus.invalid && syllabus.dirty && syllabus.hasError('required')">Required</em>
+        <em *ngIf="syllabus.invalid && syllabus.hasError('maxlength')">Syllabus is too long</em>
+        <div class="mat-app-background basic-container">
+          <ngx-wig [formControl]="syllabus" id="syllabus" placeholder="syllabus...  (required)"></ngx-wig>
+        </div>
+      </div>
+      <div class="form-group" [ngClass]="{'error': notes.invalid }">
+        <label for="notes">Notes:</label>
+        <em *ngIf="notes.invalid && notes.dirty && notes.hasError('pattern')">Invalid character (")</em>
+        <em *ngIf="notes.invalid && notes.hasError('maxlength')">Notes can have up to 400 characters</em>
+        <textarea formControlName="notes" id="notes" rows=3 class="form-control" placeholder="free notes..."></textarea>
+      </div>
+      <div class="form-group" [ngClass]="{'error': textForMail.invalid }">
+        <label for="textForMail">Text for mail:</label>
+        <em *ngIf="textForMail.invalid && textForMail.hasError('maxlength')">Text for mail is too long</em>
+        <div class="mat-app-background basic-container">
+          <ngx-wig [formControl]="textForMail" id="textForMail"></ngx-wig>
+        </div>
+      </div>
+      <div class="form-group" [ngClass]="{'error': participants.invalid && participants.dirty }">
+        <label for="participants">Participants:</label>
+        <br>
+        <em *ngIf="participants.invalid && participants.dirty">Invalid characters</em>
+        <div class='input-group'>
+          <div class="input-group-addon">
+            <i class="fa fa-user-plus" (click)='addParticipant()'></i>
+          </div>
+          <input formControlName="participants" id="participants" type="text" class="form-control"
+            placeholder="participants... (type name or copy-paste emails from outlook)" (keyup.enter)='addParticipant()' [matAutocomplete]="auto" (paste)="onParticipantsInputPaste($event)" />
+          <mat-autocomplete #auto="matAutocomplete" [displayWith]='displayFn'>
+            <mat-option *ngFor="let user of filteredUserList | async" [value]="user" (click)='addParticipant()'>
+              {{user.fullName}}</mat-option>
+          </mat-autocomplete>
+          <div class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Add All">
+            <i class="fa fa-users" (click)='addAllParticipants()'></i>
+          </div>
+        </div>
+        <div class='partic-wrapper'>
+          <span class='participant' [ngClass]="{'newly-added': isNewlyAddedParticipant(user.ID)}" *ngFor='let user of participantList; let i = index;'>
+            {{user.fullName}}
+            <i class="fa fa-user-times" (click)='removeParticipantInInd(i)'></i>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Save</button>
+  <button type="button" (click)="cancel()" class="btn btn-default">Cancel</button>
+
+</form>
+
+<form [formGroup]="editTentativeFrom" *ngIf="isTentative"
+  (ngSubmit)="saveCoursePressed(editTentativeFrom.getRawValue())" autocomplete="off">
+  <div class="row">
+    <div class="col-md-6">
+      <div class="form-group"
+        [ngClass]="{'error': tentativeName.invalid && ((tentativeName.dirty && tentativeName.touched) || tentativeName.hasError('maxlength')) }">
+        <label for="courseName">Course Name:</label>
+        <em *ngIf="tentativeName.invalid && tentativeName.dirty && tentativeName.hasError('required')">Required</em>
+        <em
+          *ngIf="tentativeName.invalid && tentativeName.dirty && tentativeName.touched && tentativeName.hasError('pattern')">Name
+          must end with #number and can't contain these characters: /?#%"\</em>
+        <em *ngIf="tentativeName.invalid && tentativeName.hasError('maxlength')">Course name can have up to 100
+          characters</em>
+        <input formControlName="tentativeName" id="tentativeName" type="text" class="form-control" [readonly]="isEditableTentative"
+          placeholder="course name... (required)" />
+      </div>
+      <div class='form-row'>
+        <div class="form-group col-md-5" [ngClass]="{'error': tentativeDate.invalid && tentativeDate.touched }">
+          <label for="tentativeDate">Date:</label>
+          <em *ngIf="tentativeDate.invalid && tentativeDate.touched && tentativeDate.hasError('dateEmpty')">Date
+            are required</em>
+          <em
+            *ngIf="tentativeDate.invalid && tentativeDate.touched && tentativeDate.hasError('matDatepickerParse')">Invalid
+            Date</em>
+          <div class="input-group">
+            <div class="input-group-addon" (click)="picker.open()">
+              <i class="fa fa-calendar"></i>
+            </div>
+            <input formControlName="tentativeDate" matInput [matDatepicker]="picker" placeholder="Choose a date"
+              class="form-control" (dateChange)="onTentativeDateChange($event)" [readonly]="isEditableTentative">
+            <mat-datepicker #picker></mat-datepicker>
+          </div>
+        </div>
+      </div>
+      <div class="form-group" [ngClass]="{'error': tentativeDuration.invalid && tentativeDuration.dirty }">
+        <label for="tentativeDuration">Duration:</label>
+        <div class='input-group'>
+          <em
+            *ngIf="tentativeDuration.invalid && tentativeDuration.dirty  && tentativeDuration.hasError('required')">Required</em>
+          <em *ngIf="tentativeDuration.invalid && tentativeDuration.dirty && tentativeDuration.hasError('pattern')">Must
+            be a number</em>
+          <input formControlName="tentativeDuration" id="tentativeDuration" type="text" class="form-control"
+            placeholder="duration...  (required)" [readonly]="isEditableTentative" />
+        </div>
+      </div>
+      <div class="form-group" [ngClass]="{'error': participantsAmountEstimated.invalid && participantsAmountEstimated.dirty }">
+        <label for="participantsAmountEstimated">participants Amount Estimated:</label>
+        <div class='input-group'>
+          <em
+            *ngIf="participantsAmountEstimated.invalid && participantsAmountEstimated.dirty  && participantsAmountEstimated.hasError('required')">Required</em>
+          <em
+            *ngIf="participantsAmountEstimated.invalid && participantsAmountEstimated.dirty && participantsAmountEstimated.hasError('pattern')">Must
+            be a number</em>
+          <input formControlName="participantsAmountEstimated" id="participantsAmountEstimated" type="text" class="form-control"
+            placeholder="participent count...  (required)" [readonly]="isEditableTentative"/>
+        </div>
+      </div>
+      <div class="form-group" [ngClass]="{'error': participants.invalid && participants.dirty }">
+        <label for="participants">Participants:</label>
+        <br>
+        <em *ngIf="participants.invalid && participants.dirty">Invalid characters</em>
+        <div class='input-group'>
+          <div class="input-group-addon">
+            <i class="fa fa-user-plus" (click)='addParticipant()'></i>
+          </div>
+          <input formControlName="participants" id="participants" type="text" class="form-control"
+            placeholder="participants... (type name or copy-paste emails from outlook)" (keyup.enter)='addParticipant()' [matAutocomplete]="auto" (paste)="onParticipantsInputPaste($event)" />
+          <mat-autocomplete #auto="matAutocomplete" [displayWith]='displayFn'>
+            <mat-option *ngFor="let user of filteredUserList | async" [value]="user" (click)='addParticipant()'>
+              {{user.fullName}}</mat-option>
+          </mat-autocomplete>
+          <div class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Add All">
+            <i class="fa fa-users" (click)='addAllParticipants()'></i>
+          </div>
+        </div>
+        <div class='partic-wrapper'>
+          <span class='participant' [ngClass]="{'newly-added': isNewlyAddedParticipant(user.ID)}" *ngFor='let user of participantList; let i = index;'>
+            {{user.fullName}}
+            <i class="fa fa-user-times" (click)='removeParticipantInInd(i)'></i>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Save</button>
+  <button type="button" (click)="cancel()" class="btn btn-default">Cancel</button>
+</form>
