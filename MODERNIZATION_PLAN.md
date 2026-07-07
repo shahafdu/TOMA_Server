@@ -568,8 +568,10 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 > (format, lint, typecheck, contract, test, build — all green). **WS-3 started:** `apps/api`
 > NestJS scaffold (T3.1) with DevAuth + sessions (T3.3) and RBAC + budget masking (T3.4) — 11
 > e2e tests green and verified over HTTP from the webpack-bundled artifact; employees/courses
-> are in-memory stubs until Prisma (T3.2). Next: WS-4 React app scaffold against the contract
-> mock, then WS-1 mockup DB + Prisma.
+> are in-memory stubs until Prisma (T3.2). **WS-4 started:** `apps/web` React 19 + Vite + TS
+> scaffold (T4.1) — TanStack Query, router, typed client, login→dashboard flow, RTL tests,
+> build green. Monorepo totals: 4 workspaces, 21 tests, all CI stages green. Next: WS-1 mockup
+> DB + Prisma (T3.2), then MUI design system (T4.2) / orval client (T4.3).
 
 ### WS-0 — Inputs & groundwork
 - [ ] T0.1 ⛔ *(narrowed — schema now known from `backend/`, §4.8)* Obtain `mysqldump --no-data --routines coma emma` for exact column types/keys/indexes and the six stored-procedure bodies; gates *finalizing* migrations (T2.9), not starting them
@@ -619,7 +621,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T3.14 API integration test suite against mockup DB (role matrix tests: every endpoint × 5 roles)
 
 ### WS-4 — Frontend (React)  *(prereq: T0.6; parallel with WS-3 via mocks)*
-- [ ] T4.1 Vite + React 19 + TS scaffold, ESLint/Prettier, Vitest/RTL/MSW, Playwright, CI wiring
+- [x] T4.1 Vite + React 19 + TS (strict) scaffold (`apps/web`): TanStack Query, React Router, typed API client (stand-in for orval), login → dashboard flow against the API, protected route, Vitest + RTL tests, `vite build` green ✅ (MUI design system = T4.2, orval = T4.3, Playwright e2e = T4.17)
 - [ ] T4.2 Design system: theme tokens (light/dark), PageShell/nav, DataTable, StatusChip, EmptyState, ConfirmUndo, skeletons, env banner (prod/staging/dev color-coded)
 - [ ] T4.3 Generated API client (orval) + TanStack Query hooks + MSW mocks from OpenAPI
 - [ ] T4.4 Auth flow: login page (or ADFS redirect), session handling, role-guarded route tree, "Developer blocked in prod" handling
