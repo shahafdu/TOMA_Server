@@ -565,8 +565,11 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 > domain package (zod schemas = contract source of truth). `@toma/contract` generates the
 > `openapi.json` v1 contract from those schemas, gated by `contract:check`. `docs/legacy-schema.md`
 > written. Dual CI live: `ci/*.sh` shared by `.github/workflows/ci.yml` and `.gitlab-ci.yml`
-> (format, lint, typecheck, contract, test, build — all green locally). Next: WS-3 (NestJS API
-> skeleton + DevAuth) and WS-4 (React app scaffold) against the contract mock; WS-1 mockup DB.
+> (format, lint, typecheck, contract, test, build — all green). **WS-3 started:** `apps/api`
+> NestJS scaffold (T3.1) with DevAuth + sessions (T3.3) and RBAC + budget masking (T3.4) — 11
+> e2e tests green and verified over HTTP from the webpack-bundled artifact; employees/courses
+> are in-memory stubs until Prisma (T3.2). Next: WS-4 React app scaffold against the contract
+> mock, then WS-1 mockup DB + Prisma.
 
 ### WS-0 — Inputs & groundwork
 - [ ] T0.1 ⛔ *(narrowed — schema now known from `backend/`, §4.8)* Obtain `mysqldump --no-data --routines coma emma` for exact column types/keys/indexes and the six stored-procedure bodies; gates *finalizing* migrations (T2.9), not starting them
@@ -598,10 +601,10 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 - [ ] T2.10 Full dry-run of M1–M6 on mockup (synthetic + anonymized) with reconciliation report **verifying every §4.6 default/derivation**; package for Admin approval (§4.4) — ⛔ finalization gated on T0.1 dump
 
 ### WS-3 — Backend API  *(prereq: T0.6, WS-1; runs against mockup DB until cutover)*
-- [ ] T3.1 NestJS scaffold: config, pino logging, problem+json errors, OpenAPI generation, healthcheck
-- [ ] T3.2 Prisma introspection of the existing schema; repository layer translating legacy shapes (name-keyed rows) → domain model (§2.3)
-- [ ] T3.3 Auth: pluggable provider interface + **DevAuth** (non-prod only) + server-side sessions, httpOnly cookies, CSRF protection; real provider (LDAP/ADFS) added when ⏸ T0.2 is decided
-- [ ] T3.4 RBAC: role guards per endpoint + **field-level DTO masking** per §2.4 (budget/price stripped for Admin/Manager/Employee); production refuses Developer logins
+- [x] T3.1 NestJS scaffold (`apps/api`): config with prod safety rails, pino logging, problem+json filter, zod validation pipe, health, serves its own OpenAPI from `@toma/contract`. Webpack-bundled build (workspace pkgs inlined); boots and verified over HTTP ✅
+- [ ] T3.2 Prisma introspection of the existing schema; repository layer translating legacy shapes (name-keyed rows) → domain model (§2.3) — *currently an in-memory stub directory stands in*
+- [x] T3.3 Auth: pluggable `AuthProvider` seam + **DevAuth** (non-prod, boot-refused in prod) + express-session httpOnly cookies, session regenerate on login, `/auth/login|logout|me`, guard + `@CurrentUser`. LDAP/ADFS provider slots in when ⏸ T0.2 lands. (CSRF: pending) ✅ core
+- [x] T3.4 RBAC: `@Roles` decorator + guard + **field-level budget masking interceptor** (§2.4 — price/budget stripped for non-HR, verified in e2e); Developer role env-scoped (refused in production) ✅
 - [ ] T3.5 Employees module: directory (paginated/filtered), profile, org subtree (cycle-safe), **multi-year history grouped by series**
 - [ ] T3.6 Courses & series module: CRUD, duplicate, schedule-next-run, manager `status=requested` flow, sessions with hour-level conflict checks
 - [ ] T3.6b Lecturers & providers module: `training_provider`/`external_lecturer` CRUD, course/session lecturer assignment (internal + external mixed), "courses taught" endpoint, delivery-type/platform fields with validation (platform fields only when `online`)

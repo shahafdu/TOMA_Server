@@ -23,8 +23,24 @@ export default tseslint.config(
       globals: { ...globals.node },
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/consistent-type-imports': 'error',
+      // NOTE: `consistent-type-imports` is intentionally NOT enabled — NestJS relies on
+      // emitted decorator metadata, so injected constructor parameter types must be VALUE
+      // imports. Forcing `import type` there would break dependency injection at runtime.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
+    },
+  },
+  {
+    // CommonJS tooling/config files (e.g. webpack.config.js).
+    files: ['**/*.{js,cjs}'],
+    languageOptions: {
+      globals: { ...globals.node },
+      sourceType: 'commonjs',
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );
