@@ -1,0 +1,4105 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TOMA API",
+    "version": "1.0.0",
+    "description": "Training management system API. Contract generated from @toma/shared zod schemas."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth"
+    },
+    {
+      "name": "employees"
+    },
+    {
+      "name": "courses"
+    },
+    {
+      "name": "registrations"
+    },
+    {
+      "name": "attendance"
+    },
+    {
+      "name": "notifications"
+    },
+    {
+      "name": "reports"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "default": "about:blank"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "status"
+        ]
+      },
+      "AuthMe": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "developer",
+              "hr",
+              "manager",
+              "employee"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "fullName",
+          "email",
+          "role"
+        ]
+      },
+      "Employee": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "managerId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "department": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rank": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 8
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "working",
+              "left",
+              "deleted"
+            ]
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "fullName",
+          "email",
+          "managerId",
+          "department",
+          "title",
+          "rank",
+          "category",
+          "status",
+          "startDate",
+          "endDate",
+          "avatarUrl"
+        ]
+      },
+      "EmployeeSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "department": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "managerId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "working",
+              "left",
+              "deleted"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "fullName",
+          "email",
+          "department",
+          "title",
+          "managerId",
+          "status"
+        ]
+      },
+      "CourseSeries": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "canonicalName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "technical",
+              "enrichment",
+              "conference"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        },
+        "required": [
+          "id",
+          "canonicalName",
+          "type",
+          "description"
+        ]
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "seriesId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2100
+          },
+          "descriptionHtml": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mailText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "technical",
+              "enrichment",
+              "conference"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "tentative",
+              "scheduled",
+              "completed",
+              "cancelled",
+              "archived"
+            ]
+          },
+          "deliveryType": {
+            "type": "string",
+            "enum": [
+              "in_person",
+              "online"
+            ]
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "corporate",
+              "other"
+            ]
+          },
+          "platformUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "isMandatory": {
+            "type": "boolean"
+          },
+          "isInternal": {
+            "type": "boolean"
+          },
+          "price": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "capacity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          },
+          "selfRegistration": {
+            "type": "string",
+            "enum": [
+              "none",
+              "open",
+              "approval_required"
+            ]
+          },
+          "ownerId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "seriesId",
+          "title",
+          "year",
+          "descriptionHtml",
+          "notes",
+          "mailText",
+          "type",
+          "status",
+          "deliveryType",
+          "platform",
+          "platformUrl",
+          "isMandatory",
+          "isInternal",
+          "capacity",
+          "selfRegistration",
+          "ownerId"
+        ]
+      },
+      "CourseSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "courseId": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "venue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lecturer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "courseId",
+          "startsAt",
+          "endsAt",
+          "venue",
+          "lecturer"
+        ]
+      },
+      "Registration": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "courseId": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "employeeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "pending_approval",
+              "registered",
+              "waitlisted",
+              "declined",
+              "cancelled"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "hr",
+              "manager",
+              "self"
+            ]
+          },
+          "requestedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "approvedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "courseId",
+          "employeeId",
+          "status",
+          "source",
+          "requestedBy",
+          "approvedBy",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PriorParticipation": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "seriesId": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2100
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "pending_approval",
+              "registered",
+              "waitlisted",
+              "declined",
+              "cancelled"
+            ]
+          },
+          "attended": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "courseId",
+          "seriesId",
+          "year",
+          "title",
+          "status",
+          "attended"
+        ]
+      },
+      "RegistrationResult": {
+        "type": "object",
+        "properties": {
+          "registration": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "courseId": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "employeeId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "invited",
+                  "pending_approval",
+                  "registered",
+                  "waitlisted",
+                  "declined",
+                  "cancelled"
+                ]
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "hr",
+                  "manager",
+                  "self"
+                ]
+              },
+              "requestedBy": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1
+              },
+              "approvedBy": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "courseId",
+              "employeeId",
+              "status",
+              "source",
+              "requestedBy",
+              "approvedBy",
+              "createdAt",
+              "updatedAt"
+            ]
+          },
+          "priorParticipations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "courseId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "seriesId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "year": {
+                  "type": "integer",
+                  "minimum": 2000,
+                  "maximum": 2100
+                },
+                "title": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "invited",
+                    "pending_approval",
+                    "registered",
+                    "waitlisted",
+                    "declined",
+                    "cancelled"
+                  ]
+                },
+                "attended": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "courseId",
+                "seriesId",
+                "year",
+                "title",
+                "status",
+                "attended"
+              ]
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "courseId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "title": {
+                  "type": "string"
+                },
+                "startsAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "endsAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "courseId",
+                "title",
+                "startsAt",
+                "endsAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "registration",
+          "priorParticipations",
+          "conflicts"
+        ]
+      },
+      "Attendance": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "employeeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "present": {
+            "type": "boolean"
+          },
+          "markedById": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "markedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "sessionId",
+          "employeeId",
+          "present",
+          "markedById",
+          "markedAt"
+        ]
+      },
+      "EducationHours": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "year": {
+            "type": "integer"
+          },
+          "hours": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "employeeId",
+          "year",
+          "hours"
+        ]
+      },
+      "NotificationRule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "scope": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "global"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "series"
+                    ]
+                  },
+                  "seriesId": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "kind",
+                  "seriesId"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "course"
+                    ]
+                  },
+                  "courseId": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "kind",
+                  "courseId"
+                ]
+              }
+            ]
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "registration_created",
+              "self_registration_requested",
+              "registration_cancelled",
+              "registration_approved",
+              "waitlist_promoted",
+              "course_requested",
+              "session_reminder",
+              "attendance_missing",
+              "feedback_request"
+            ]
+          },
+          "offsetDays": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "recipientSelectors": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "direct_manager"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "manager_title"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "title"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "department"
+                      ]
+                    },
+                    "department": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "department"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "hr"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "course_owner"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "course_lecturer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "employee"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "custom_emails"
+                      ]
+                    },
+                    "emails": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "email"
+                      },
+                      "minItems": 1
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "emails"
+                  ]
+                }
+              ]
+            },
+            "minItems": 1
+          },
+          "templateId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "scope",
+          "event",
+          "offsetDays",
+          "recipientSelectors",
+          "templateId"
+        ]
+      },
+      "EmployeePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fullName": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "email"
+                },
+                "department": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "managerId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "working",
+                    "left",
+                    "deleted"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "fullName",
+                "email",
+                "department",
+                "title",
+                "managerId",
+                "status"
+              ]
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "pageSize": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ]
+      },
+      "CoursePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "seriesId": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "exclusiveMinimum": 0
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "year": {
+                  "type": "integer",
+                  "minimum": 2000,
+                  "maximum": 2100
+                },
+                "descriptionHtml": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "notes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "mailText": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "technical",
+                    "enrichment",
+                    "conference"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "requested",
+                    "tentative",
+                    "scheduled",
+                    "completed",
+                    "cancelled",
+                    "archived"
+                  ]
+                },
+                "deliveryType": {
+                  "type": "string",
+                  "enum": [
+                    "in_person",
+                    "online"
+                  ]
+                },
+                "platform": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "corporate",
+                    "other"
+                  ]
+                },
+                "platformUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uri"
+                },
+                "isMandatory": {
+                  "type": "boolean"
+                },
+                "isInternal": {
+                  "type": "boolean"
+                },
+                "price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "capacity": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "exclusiveMinimum": 0
+                },
+                "selfRegistration": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "open",
+                    "approval_required"
+                  ]
+                },
+                "ownerId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "id",
+                "seriesId",
+                "title",
+                "year",
+                "descriptionHtml",
+                "notes",
+                "mailText",
+                "type",
+                "status",
+                "deliveryType",
+                "platform",
+                "platformUrl",
+                "isMandatory",
+                "isInternal",
+                "capacity",
+                "selfRegistration",
+                "ownerId"
+              ]
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "pageSize": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Current authenticated user and resolved role",
+        "responses": {
+          "200": {
+            "description": "The current session identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/employees": {
+      "get": {
+        "tags": [
+          "employees"
+        ],
+        "summary": "List employees (server-side paginated & filtered)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "query",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "managerId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "department",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 200
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of employees",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeePage"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/employees/{id}": {
+      "get": {
+        "tags": [
+          "employees"
+        ],
+        "summary": "Employee profile (fields masked per role)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The employee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "fullName": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "email"
+                    },
+                    "managerId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    },
+                    "department": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "rank": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 1,
+                      "maximum": 8
+                    },
+                    "category": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "working",
+                        "left",
+                        "deleted"
+                      ]
+                    },
+                    "startDate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "endDate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "avatarUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "firstName",
+                    "lastName",
+                    "fullName",
+                    "email",
+                    "managerId",
+                    "department",
+                    "title",
+                    "rank",
+                    "category",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "avatarUrl"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such employee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/employees/{id}/history": {
+      "get": {
+        "tags": [
+          "employees"
+        ],
+        "summary": "Full multi-year training history grouped by series (requirement #4)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prior participations across all years",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "courseId": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "seriesId": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "year": {
+                        "type": "integer",
+                        "minimum": 2000,
+                        "maximum": 2100
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "invited",
+                          "pending_approval",
+                          "registered",
+                          "waitlisted",
+                          "declined",
+                          "cancelled"
+                        ]
+                      },
+                      "attended": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "courseId",
+                      "seriesId",
+                      "year",
+                      "title",
+                      "status",
+                      "attended"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such employee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses": {
+      "get": {
+        "tags": [
+          "courses"
+        ],
+        "summary": "List course runs",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "year",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "seriesId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 200
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of courses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoursePage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "courses"
+        ],
+        "summary": "Create a course (HR); a manager create is forced to status=requested",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "seriesId": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "exclusiveMinimum": 0
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "descriptionHtml": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mailText": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "technical",
+                      "enrichment",
+                      "conference"
+                    ]
+                  },
+                  "deliveryType": {
+                    "type": "string",
+                    "enum": [
+                      "in_person",
+                      "online"
+                    ]
+                  },
+                  "platform": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "corporate",
+                      "other"
+                    ]
+                  },
+                  "platformUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uri"
+                  },
+                  "isMandatory": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "isInternal": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "price": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "capacity": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "exclusiveMinimum": 0
+                  },
+                  "selfRegistration": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "open",
+                      "approval_required"
+                    ],
+                    "default": "none"
+                  }
+                },
+                "required": [
+                  "title",
+                  "year",
+                  "type",
+                  "deliveryType"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "seriesId": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 2000,
+                      "maximum": 2100
+                    },
+                    "descriptionHtml": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "notes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mailText": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "technical",
+                        "enrichment",
+                        "conference"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requested",
+                        "tentative",
+                        "scheduled",
+                        "completed",
+                        "cancelled",
+                        "archived"
+                      ]
+                    },
+                    "deliveryType": {
+                      "type": "string",
+                      "enum": [
+                        "in_person",
+                        "online"
+                      ]
+                    },
+                    "platform": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "corporate",
+                        "other"
+                      ]
+                    },
+                    "platformUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uri"
+                    },
+                    "isMandatory": {
+                      "type": "boolean"
+                    },
+                    "isInternal": {
+                      "type": "boolean"
+                    },
+                    "price": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "capacity": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0
+                    },
+                    "selfRegistration": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "open",
+                        "approval_required"
+                      ]
+                    },
+                    "ownerId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "seriesId",
+                    "title",
+                    "year",
+                    "descriptionHtml",
+                    "notes",
+                    "mailText",
+                    "type",
+                    "status",
+                    "deliveryType",
+                    "platform",
+                    "platformUrl",
+                    "isMandatory",
+                    "isInternal",
+                    "capacity",
+                    "selfRegistration",
+                    "ownerId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}": {
+      "get": {
+        "tags": [
+          "courses"
+        ],
+        "summary": "Course detail",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The course",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "seriesId": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 2000,
+                      "maximum": 2100
+                    },
+                    "descriptionHtml": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "notes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mailText": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "technical",
+                        "enrichment",
+                        "conference"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requested",
+                        "tentative",
+                        "scheduled",
+                        "completed",
+                        "cancelled",
+                        "archived"
+                      ]
+                    },
+                    "deliveryType": {
+                      "type": "string",
+                      "enum": [
+                        "in_person",
+                        "online"
+                      ]
+                    },
+                    "platform": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "corporate",
+                        "other"
+                      ]
+                    },
+                    "platformUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uri"
+                    },
+                    "isMandatory": {
+                      "type": "boolean"
+                    },
+                    "isInternal": {
+                      "type": "boolean"
+                    },
+                    "price": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "capacity": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0
+                    },
+                    "selfRegistration": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "open",
+                        "approval_required"
+                      ]
+                    },
+                    "ownerId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "seriesId",
+                    "title",
+                    "year",
+                    "descriptionHtml",
+                    "notes",
+                    "mailText",
+                    "type",
+                    "status",
+                    "deliveryType",
+                    "platform",
+                    "platformUrl",
+                    "isMandatory",
+                    "isInternal",
+                    "capacity",
+                    "selfRegistration",
+                    "ownerId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such course",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "courses"
+        ],
+        "summary": "Update a course",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "seriesId": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "exclusiveMinimum": 0
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "descriptionHtml": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mailText": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "technical",
+                      "enrichment",
+                      "conference"
+                    ]
+                  },
+                  "deliveryType": {
+                    "type": "string",
+                    "enum": [
+                      "in_person",
+                      "online"
+                    ]
+                  },
+                  "platform": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "corporate",
+                      "other"
+                    ]
+                  },
+                  "platformUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uri"
+                  },
+                  "isMandatory": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "isInternal": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "price": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "capacity": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "exclusiveMinimum": 0
+                  },
+                  "selfRegistration": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "open",
+                      "approval_required"
+                    ],
+                    "default": "none"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "requested",
+                      "tentative",
+                      "scheduled",
+                      "completed",
+                      "cancelled",
+                      "archived"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "seriesId": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 2000,
+                      "maximum": 2100
+                    },
+                    "descriptionHtml": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "notes": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mailText": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "technical",
+                        "enrichment",
+                        "conference"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requested",
+                        "tentative",
+                        "scheduled",
+                        "completed",
+                        "cancelled",
+                        "archived"
+                      ]
+                    },
+                    "deliveryType": {
+                      "type": "string",
+                      "enum": [
+                        "in_person",
+                        "online"
+                      ]
+                    },
+                    "platform": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "corporate",
+                        "other"
+                      ]
+                    },
+                    "platformUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uri"
+                    },
+                    "isMandatory": {
+                      "type": "boolean"
+                    },
+                    "isInternal": {
+                      "type": "boolean"
+                    },
+                    "price": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "capacity": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0
+                    },
+                    "selfRegistration": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "open",
+                        "approval_required"
+                      ]
+                    },
+                    "ownerId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "seriesId",
+                    "title",
+                    "year",
+                    "descriptionHtml",
+                    "notes",
+                    "mailText",
+                    "type",
+                    "status",
+                    "deliveryType",
+                    "platform",
+                    "platformUrl",
+                    "isMandatory",
+                    "isInternal",
+                    "capacity",
+                    "selfRegistration",
+                    "ownerId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such course",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/sessions": {
+      "get": {
+        "tags": [
+          "courses"
+        ],
+        "summary": "Sessions of a course",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "courseId": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "startsAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "endsAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "venue": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "lecturer": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "courseId",
+                      "startsAt",
+                      "endsAt",
+                      "venue",
+                      "lecturer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/registrations": {
+      "post": {
+        "tags": [
+          "registrations"
+        ],
+        "summary": "Register an employee; response surfaces prior participations & conflicts (req. #4)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "hr",
+                      "manager",
+                      "self"
+                    ]
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "source"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered (or waitlisted / pending approval)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "registration": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "courseId": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "employeeId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "invited",
+                            "pending_approval",
+                            "registered",
+                            "waitlisted",
+                            "declined",
+                            "cancelled"
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "hr",
+                            "manager",
+                            "self"
+                          ]
+                        },
+                        "requestedBy": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "minLength": 1
+                        },
+                        "approvedBy": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "minLength": 1
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "courseId",
+                        "employeeId",
+                        "status",
+                        "source",
+                        "requestedBy",
+                        "approvedBy",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    },
+                    "priorParticipations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "courseId": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "seriesId": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "year": {
+                            "type": "integer",
+                            "minimum": 2000,
+                            "maximum": 2100
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "invited",
+                              "pending_approval",
+                              "registered",
+                              "waitlisted",
+                              "declined",
+                              "cancelled"
+                            ]
+                          },
+                          "attended": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "courseId",
+                          "seriesId",
+                          "year",
+                          "title",
+                          "status",
+                          "attended"
+                        ]
+                      }
+                    },
+                    "conflicts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "courseId": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "courseId",
+                          "title",
+                          "startsAt",
+                          "endsAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "registration",
+                    "priorParticipations",
+                    "conflicts"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Course full and waitlist disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/registrations/precheck": {
+      "get": {
+        "tags": [
+          "registrations"
+        ],
+        "summary": "Bulk duplicate/conflict precheck before committing registrations",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "comma-separated employee ids"
+            },
+            "required": true,
+            "description": "comma-separated employee ids",
+            "name": "employeeIds",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-employee prior participations & conflicts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "registration": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "courseId": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "employeeId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "invited",
+                              "pending_approval",
+                              "registered",
+                              "waitlisted",
+                              "declined",
+                              "cancelled"
+                            ]
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "hr",
+                              "manager",
+                              "self"
+                            ]
+                          },
+                          "requestedBy": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "minLength": 1
+                          },
+                          "approvedBy": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "minLength": 1
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "courseId",
+                          "employeeId",
+                          "status",
+                          "source",
+                          "requestedBy",
+                          "approvedBy",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      },
+                      "priorParticipations": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "courseId": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "seriesId": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "year": {
+                              "type": "integer",
+                              "minimum": 2000,
+                              "maximum": 2100
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "invited",
+                                "pending_approval",
+                                "registered",
+                                "waitlisted",
+                                "declined",
+                                "cancelled"
+                              ]
+                            },
+                            "attended": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "courseId",
+                            "seriesId",
+                            "year",
+                            "title",
+                            "status",
+                            "attended"
+                          ]
+                        }
+                      },
+                      "conflicts": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "courseId": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "startsAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "endsAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "courseId",
+                            "title",
+                            "startsAt",
+                            "endsAt"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "registration",
+                      "priorParticipations",
+                      "conflicts"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/registrations/{id}": {
+      "patch": {
+        "tags": [
+          "registrations"
+        ],
+        "summary": "Approve / decline / cancel / waitlist a registration",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "decline",
+                      "cancel",
+                      "waitlist",
+                      "promote"
+                    ]
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "courseId": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "employeeId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "invited",
+                        "pending_approval",
+                        "registered",
+                        "waitlisted",
+                        "declined",
+                        "cancelled"
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "hr",
+                        "manager",
+                        "self"
+                      ]
+                    },
+                    "requestedBy": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    },
+                    "approvedBy": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "courseId",
+                    "employeeId",
+                    "status",
+                    "source",
+                    "requestedBy",
+                    "approvedBy",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{sessionId}/attendance/{employeeId}": {
+      "put": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Mark or unmark attendance for an employee at a session",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "sessionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "employeeId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "present": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "present"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Attendance state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionId": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "employeeId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "present": {
+                      "type": "boolean"
+                    },
+                    "markedById": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    },
+                    "markedAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "sessionId",
+                    "employeeId",
+                    "present",
+                    "markedById",
+                    "markedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such session or employee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notification-rules": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "List HR-configured notification rules",
+        "responses": {
+          "200": {
+            "description": "Rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "scope": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "global"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "series"
+                                ]
+                              },
+                              "seriesId": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "seriesId"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "course"
+                                ]
+                              },
+                              "courseId": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "courseId"
+                            ]
+                          }
+                        ]
+                      },
+                      "event": {
+                        "type": "string",
+                        "enum": [
+                          "registration_created",
+                          "self_registration_requested",
+                          "registration_cancelled",
+                          "registration_approved",
+                          "waitlist_promoted",
+                          "course_requested",
+                          "session_reminder",
+                          "attendance_missing",
+                          "feedback_request"
+                        ]
+                      },
+                      "offsetDays": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "recipientSelectors": {
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "direct_manager"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manager_title"
+                                  ]
+                                },
+                                "title": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "title"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "department"
+                                  ]
+                                },
+                                "department": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "department"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "hr"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "course_owner"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "course_lecturer"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "employee"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "custom_emails"
+                                  ]
+                                },
+                                "emails": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "format": "email"
+                                  },
+                                  "minItems": 1
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "emails"
+                              ]
+                            }
+                          ]
+                        },
+                        "minItems": 1
+                      },
+                      "templateId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "enabled",
+                      "scope",
+                      "event",
+                      "offsetDays",
+                      "recipientSelectors",
+                      "templateId"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HR only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Create a notification rule (HR)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "scope": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "global"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "series"
+                            ]
+                          },
+                          "seriesId": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "seriesId"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "course"
+                            ]
+                          },
+                          "courseId": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "courseId"
+                        ]
+                      }
+                    ]
+                  },
+                  "event": {
+                    "type": "string",
+                    "enum": [
+                      "registration_created",
+                      "self_registration_requested",
+                      "registration_cancelled",
+                      "registration_approved",
+                      "waitlist_promoted",
+                      "course_requested",
+                      "session_reminder",
+                      "attendance_missing",
+                      "feedback_request"
+                    ]
+                  },
+                  "offsetDays": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "recipientSelectors": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "direct_manager"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "manager_title"
+                              ]
+                            },
+                            "title": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "title"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "department"
+                              ]
+                            },
+                            "department": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "department"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "hr"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "course_owner"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "course_lecturer"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "employee"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "custom_emails"
+                              ]
+                            },
+                            "emails": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "format": "email"
+                              },
+                              "minItems": 1
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "emails"
+                          ]
+                        }
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "templateId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "scope",
+                  "event",
+                  "recipientSelectors"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "scope": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "global"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "series"
+                              ]
+                            },
+                            "seriesId": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "seriesId"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "course"
+                              ]
+                            },
+                            "courseId": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "courseId"
+                          ]
+                        }
+                      ]
+                    },
+                    "event": {
+                      "type": "string",
+                      "enum": [
+                        "registration_created",
+                        "self_registration_requested",
+                        "registration_cancelled",
+                        "registration_approved",
+                        "waitlist_promoted",
+                        "course_requested",
+                        "session_reminder",
+                        "attendance_missing",
+                        "feedback_request"
+                      ]
+                    },
+                    "offsetDays": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "recipientSelectors": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "direct_manager"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "manager_title"
+                                ]
+                              },
+                              "title": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "title"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "department"
+                                ]
+                              },
+                              "department": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "department"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "hr"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "course_owner"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "course_lecturer"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "employee"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "custom_emails"
+                                ]
+                              },
+                              "emails": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "format": "email"
+                                },
+                                "minItems": 1
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "emails"
+                            ]
+                          }
+                        ]
+                      },
+                      "minItems": 1
+                    },
+                    "templateId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "enabled",
+                    "scope",
+                    "event",
+                    "offsetDays",
+                    "recipientSelectors",
+                    "templateId"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "HR only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/hours": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Education-hours rollup (server-computed)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "year",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "managerId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-employee hours for the year",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "employeeId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "year": {
+                        "type": "integer"
+                      },
+                      "hours": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "employeeId",
+                      "year",
+                      "hours"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

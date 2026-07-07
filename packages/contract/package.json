@@ -1,0 +1,23 @@
+{
+  "name": "@toma/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "gen": "tsx src/generate.ts",
+    "check": "tsx src/check.ts",
+    "typecheck": "tsc --noEmit",
+    "mock": "npx --yes @stoplight/prism-cli@5 mock openapi.json"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^7.3.0",
+    "@toma/shared": "*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2"
+  }
+}

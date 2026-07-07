@@ -1,0 +1,39 @@
+# TOMA modern monorepo CI (GitLab). Mirrors .github/workflows/ci.yml — both call ci/*.sh so
+# they cannot drift (plan §2.9). GitLab Free tier only: plain stages/jobs, cache, artifacts,
+# rules — no Premium/Ultimate features (no merge trains, no security-dashboard scanners).
+#
+# The legacy client (legacy-client/) and server (backend/) keep their own pipelines
+# (backend/.gitlab-ci.yml, legacy Jenkins) and are not built here.
+
+default:
+  image: node:22-alpine
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  before_script:
+    - apk add --no-cache bash
+    - npm config set cache .npm --global
+
+stages:
+  - install
+  - verify
+
+install:
+  stage: install
+  script:
+    - ./ci/install.sh
+  artifacts:
+    paths:
+      - node_modules/
+      - packages/*/node_modules/
+      - apps/*/node_modules/
+    expire_in: 1 hour
+
+verify:
+  stage: verify
+  needs: ['install']
+  script:
+    - ./ci/checks.sh

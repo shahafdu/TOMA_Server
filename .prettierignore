@@ -6,6 +6,9 @@ legacy-client/
 backend/
 package-lock.json
 
+# Generated — gated by `npm run contract:check`, not Prettier
+packages/contract/openapi.json
+
 # Long-form docs are hand-formatted (wide tables) — keep Prettier out of them
 *.md
 
