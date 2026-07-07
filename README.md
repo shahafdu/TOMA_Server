@@ -1,57 +1,60 @@
-# Toma
+# TOMA — Training Management System
 
-> This project is named `toma` even though it's called `coma` (or `cma`) in much of the code...
+TOMA is the training-management system for the site: HR manage courses, managers register
+their employees, and employees self-register and track their training. This repository is a
+monorepo containing the modern rewrite alongside the legacy applications it is replacing.
 
-For developement:
-```bash
-# it uses a multi-stage build, so for dev you want to stop early...
-docker build --target builder -t coma_client:builder .
+> **Naming:** the product is **TOMA**. Much of the *legacy* code and the database schema are
+> named `coma`/`COMA` — those literal names are kept where they refer to the existing system
+> and database (renaming them would break the running app and the schema). All new code uses
+> the `@toma/*` namespace.
 
-# then start a dev shell...
-docker run -it -e HOME=/tmp -p3008:4200 --user $(id -u):$(id -g) -v /home/arthurf/swi/CMA_Client:/code coma_client:builder bash
-$ npm install --legacy-peer-deps
-# to change which backend is used, edit src/urls.ts
-# ideally we could just set
-$ export COMA_BACKEND_HOST=http://dev-server:8484
-# (assuming you started COMA with the defaut dev instructions)
-# but the node version make it harder than it should be...
-$ npm start
-#=> https://your-server:3008/
+See [`MODERNIZATION_PLAN.md`](./MODERNIZATION_PLAN.md) for the full technical spec, audit, and
+task list driving this work.
+
+## Layout
+
+```
+apps/
+  web/            Modern client — React 19 + Vite (planned)
+  api/            Modern API — NestJS over the existing MySQL/MariaDB (planned)
+packages/
+  shared/         @toma/shared — domain model (zod schemas + TS types), the contract source of truth
+db/               Migrations, seed generators, mockup-DB compose (planned)
+ci/               Shared CI scripts invoked by both GitHub Actions and GitLab CI (planned)
+docs/             Reverse-engineered legacy schema and design notes
+legacy-client/    The current Angular 6 app — untouched, runs until cutover
+backend/          The current Express server — untouched, runs until cutover
 ```
 
-*For dev* you may want to change the backend connection in `src/urls.ts`
+The new apps build as two Docker images (`toma-web`, `toma-api`); the legacy apps keep their
+own build/deploy until decommission. See the plan's §2.9–2.10.
 
----
-# information about the application URLs and ports
-URLs https://app.example.com points on host docker-prod-srv-1, port 8080
- 
-backend URL:https://api.example.com points on host docker-prod-srv-1, port 8080 
----
+## Development
 
-# Auto-generated docs from Angular
+Requires Node 22 (see `.nvmrc`). This is an npm-workspaces monorepo.
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 6.2.3.
+```bash
+npm install            # installs all workspaces
+npm run typecheck      # typecheck every workspace
+npm run lint
+npm run test
+npm run format:check
+```
 
-## Development server
+Working on a single workspace:
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+```bash
+npm run build -w @toma/shared
+```
 
-## Code scaffolding
+### Legacy apps
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+The legacy Angular client (`legacy-client/`) and Express server (`backend/`) are self-contained
+with their own `package.json`, `Dockerfile`, and compose files. They are **excluded** from the
+workspace root and from the shared tooling (lint/format) on purpose. See
+`legacy-client/README.md` for how to run the old client.
 
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+> Note for CI/CD: the legacy client's Jenkins/GitLab jobs previously built from the repo root.
+> After this restructure their build context is `legacy-client/` — the deploy pipeline must
+> `cd legacy-client` (or set the compose/Docker context accordingly) until it is decommissioned.

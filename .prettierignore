@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+coverage/
+legacy-client/
+backend/
+package-lock.json
+
+# Long-form docs are hand-formatted (wide tables) — keep Prettier out of them
+*.md
+

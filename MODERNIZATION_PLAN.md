@@ -559,15 +559,21 @@ Requirements #2–#5 (roles, series, history visibility, notifications) are spec
 
 Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakeholder input (§8); ⏸ marks tasks **deferred by decision** (auth/SMTP — revisit later; interfaces keep everything else unblocked). Everything else is executable by Claude. Legacy app stays untouched except T0.4.
 
+> **Implementation status (2026-07-07):** monorepo restructure done — legacy Angular app moved
+> to `legacy-client/`, Express server stays in `backend/`, both untouched; workspace root +
+> tooling (TS 5, Prettier, Node 22) in place. `@toma/shared` domain package built (zod schemas
+> = contract source of truth) with typecheck + tests green. `docs/legacy-schema.md` written.
+> Next up: T0.6 (OpenAPI contract), T0.7 (dual CI), then WS-3/WS-4 scaffolds.
+
 ### WS-0 — Inputs & groundwork
 - [ ] T0.1 ⛔ *(narrowed — schema now known from `backend/`, §4.8)* Obtain `mysqldump --no-data --routines coma emma` for exact column types/keys/indexes and the six stored-procedure bodies; gates *finalizing* migrations (T2.9), not starting them
 - [ ] T0.2 ⏸ *Deferred:* auth provider decision (LDAP bind — confirmed in use by the legacy backend, to be moved to `ldaps://` — vs. ADFS) — until then DevAuth (§2.5) carries all dev/test
 - [ ] T0.3 ⏸ *Deferred:* Exchange SMTP relay host (shape confirmed: unauthenticated relay, port 25) — until then the dev mail transport (§2.6) carries all dev/test
 - [ ] T0.4 Legacy quick wins on the running apps — frontend: remove Docker TLS bypasses (S-5), add SPA fallback (B-21), fix `fastName` typo (B-1); backend: remove the `process.exit()` request-timeout kill (SB-5), fix the manager-notification SQL so requirement #5's legacy version works again (BB-2), fix `/getUserDetails` `startDate2` (BB-7), remove/guard the unauthenticated `/sendMail` open relay (SB-3 — unused by the frontend)
-- [ ] T0.5 Write `docs/legacy-schema.md` from the backend SQL (§4.8: tables, relationships, name conventions, per-year-column inventory, data quirks); reconcile against the T0.1 dump when it lands
+- [x] T0.5 Write `docs/legacy-schema.md` from the backend SQL (§4.8: tables, relationships, name conventions, per-year-column inventory, data quirks); reconcile against the T0.1 dump when it lands ✅
 - [ ] T0.6 Write the OpenAPI v1 contract for §2.2; set up mock server (MSW/prism) from it
 - [ ] T0.7 Dual CI skeleton: `ci/*.sh` + npm scripts as single source of truth; `.github/workflows/ci.yml` (active now) + mirrored `.gitlab-ci.yml` (Free-tier features only); Jenkinsfile left as-is for legacy deploys
-- [ ] T0.8 Restructure the repo as an npm-workspaces monorepo (§2.10): `apps/web`, `apps/api`, `packages/shared`, `db/`, `ci/`; legacy client and `backend/` left in place untouched until decommission; path-filtered CI jobs
+- [x] T0.8 Restructure the repo as an npm-workspaces monorepo (§2.10): legacy Angular → `legacy-client/`, `backend/` left in place; workspace root + `packages/shared` (domain model, typecheck/tests green) built; `apps/*`, `db/`, `ci/` to follow ✅
 
 ### WS-1 — Mockup database & migration framework  *(prereq: T0.1, T0.5)*
 - [ ] T1.1 Docker Compose mockup DB (same engine/version) + synthetic seed generator (org tree, multi-year recurring courses, `#N` suffixes, name-collision and orphan-row edge cases)
