@@ -1,6 +1,8 @@
 import { Controller, Get, Param, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthenticatedGuard } from '../auth/authenticated.guard.js';
 import { BudgetMaskingInterceptor } from '../rbac/budget-masking.interceptor.js';
+import { Roles } from '../rbac/roles.decorator.js';
+import { RolesGuard } from '../rbac/roles.guard.js';
 import { CoursesService } from './courses.service.js';
 
 /**
@@ -22,5 +24,17 @@ export class CoursesController {
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.courses.getById(Number(id));
+  }
+
+  @Get(':id/sessions')
+  sessions(@Param('id') id: string) {
+    return this.courses.sessions(Number(id));
+  }
+
+  @Get(':id/participants')
+  @UseGuards(RolesGuard)
+  @Roles('hr', 'admin', 'developer', 'manager')
+  participants(@Param('id') id: string) {
+    return this.courses.participants(Number(id));
   }
 }

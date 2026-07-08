@@ -32,7 +32,11 @@ VALUES
   (203, 'JavaScript #1 2026',          'Guy Adar',  'JS fundamentals',  6,  3200, 'Room B', 1, 0, 0, 0, 2026, 'Alice Cohen', 0, 0),
   (204, 'Leadership 101 2026',         'Rina Katz', 'Leading teams',    4,  2000, 'Room C', 1, 1, 0, 1, 2026, 'Alice Cohen', 0, 0),
   (205, 'Cloud Conf 2026',             'External',  'Cloud conference', 12, 6000, 'Expo',   0, 0, 1, 0, 2026, 'Bob Levi',    0, 0),
-  (206, 'Future AI #1 2026',           '',          '',                 5,  0,    '',       1, 0, 0, 0, 2026, 'Bob Levi',    1, 10);
+  (206, 'Future AI #1 2026',           '',          '',                 5,  0,    '',       1, 0, 0, 0, 2026, 'Bob Levi',    1, 10),
+  (207, 'Kubernetes Fundamentals 2026','Guy Adar',  'Containers & K8s', 12, 5200, 'Room B', 1, 0, 0, 0, 2026, 'Alice Cohen', 0, 0),
+  (208, 'Security Awareness 2026',     'Rina Katz', 'Annual security training (mandatory for all employees)', 2, 0, 'Online', 1, 1, 0, 1, 2026, 'Alice Cohen', 0, 0),
+  (209, 'Effective Communication 2026','Rina Katz', 'Soft skills workshop', 6, 2400, 'Room C', 1, 0, 0, 1, 2026, 'Alice Cohen', 0, 0),
+  (210, 'Design Systems 2026',         'Noa Bar',   'Building scalable UI design systems', 8, 4800, 'Room A', 1, 0, 0, 0, 2026, 'Bob Levi', 0, 0);
 
 INSERT INTO coursetodatetime (CourseID, DateTimeStart, DateTimeEnd) VALUES
   (101, '2025-03-10 09:00:00', '2025-03-10 13:00:00'),
@@ -43,7 +47,12 @@ INSERT INTO coursetodatetime (CourseID, DateTimeStart, DateTimeEnd) VALUES
   (203, '2026-09-15 09:00:00', '2026-09-15 15:00:00'),
   (204, '2026-06-01 13:00:00', '2026-06-01 17:00:00'),
   (205, '2026-11-01 09:00:00', '2026-11-01 21:00:00'),
-  (206, '2026-12-01 13:00:00', '2026-12-01 14:00:00');
+  (206, '2026-12-01 13:00:00', '2026-12-01 14:00:00'),
+  (207, '2026-10-05 09:00:00', '2026-10-05 15:00:00'),
+  (207, '2026-10-06 09:00:00', '2026-10-06 15:00:00'),
+  (208, '2026-09-01 10:00:00', '2026-09-01 12:00:00'),
+  (209, '2026-07-20 13:00:00', '2026-07-20 17:00:00'),
+  (210, '2026-11-15 09:00:00', '2026-11-15 17:00:00');
 
 INSERT INTO coursetouser (CourseID, ID) VALUES
   (101, 3),
@@ -51,7 +60,11 @@ INSERT INTO coursetouser (CourseID, ID) VALUES
   (202, 3),
   (203, 4),
   (204, 2), (204, 3), (204, 4),
-  (205, 2);
+  (205, 2),
+  (207, 4), (207, 3),
+  (208, 2), (208, 3), (208, 4),
+  (209, 2), (209, 3),
+  (210, 3);
 
 INSERT INTO coursedatetimetouser (CourseID, ID, DateTimeStart, DateTimeEnd) VALUES
   (101, 3, '2025-03-10 09:00:00', '2025-03-10 13:00:00'),

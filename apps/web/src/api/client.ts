@@ -1,4 +1,12 @@
-import type { Course, Role } from '@toma/shared';
+import type {
+  Course,
+  CourseSession,
+  Employee,
+  EmployeeSummary,
+  PriorParticipation,
+  RegistrationResult,
+  Role,
+} from '@toma/shared';
 
 /**
  * Thin typed API client. This is a hand-written stand-in for the orval-generated client
@@ -12,6 +20,13 @@ export interface Session {
   fullName: string;
   email: string | null;
   role: Role;
+}
+
+export interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export class ApiError extends Error {
@@ -51,5 +66,24 @@ export const api = {
   me: () => request<Session>('GET', '/auth/me'),
   login: (username: string) => request<Session>('POST', '/auth/login', { username }),
   logout: () => request<void>('POST', '/auth/logout'),
-  courses: () => request<Course[]>('GET', '/courses'),
+
+  courses: (year: number) => request<Course[]>('GET', `/courses?year=${year}`),
+  course: (id: number) => request<Course>('GET', `/courses/${id}`),
+  courseSessions: (id: number) => request<CourseSession[]>('GET', `/courses/${id}/sessions`),
+  courseParticipants: (id: number) =>
+    request<EmployeeSummary[]>('GET', `/courses/${id}/participants`),
+
+  employees: (query?: string) =>
+    request<Page<EmployeeSummary>>(
+      'GET',
+      `/employees?pageSize=200${query ? `&query=${encodeURIComponent(query)}` : ''}`,
+    ),
+  employee: (id: string) => request<Employee>('GET', `/employees/${id}`),
+  employeeHistory: (id: string) => request<PriorParticipation[]>('GET', `/employees/${id}/history`),
+
+  register: (courseId: number, employeeId: string, source: 'hr' | 'manager' | 'self') =>
+    request<RegistrationResult>('POST', `/courses/${courseId}/registrations`, {
+      employeeId,
+      source,
+    }),
 };

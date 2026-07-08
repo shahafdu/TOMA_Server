@@ -581,6 +581,11 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 > → React → API → MariaDB): HR sees course prices, employee sees them masked. Monorepo totals: 5
 > workspaces, **28 tests**, all CI stages green. Next: MUI design system (T4.2), orval client (T4.3),
 > course/session write endpoints (T3.6), then the migration framework (T1.3+) and M1–M6.
+> **UI (T4.2) built:** full MUI design system (light/dark, Inter), app shell with a role-aware nav
+> rail, and real screens — login, KPI dashboard, course catalog with cards/filters/status chips,
+> course detail (overview/sessions/participants tabs), employees table, and an employee profile
+> with the multi-year training-history timeline. Verified live in a browser. Monorepo: 5
+> workspaces, 28 tests, all CI green.
 
 ### WS-0 — Inputs & groundwork
 - [ ] T0.1 ⛔ *(narrowed — schema now known from `backend/`, §4.8)* Obtain `mysqldump --no-data --routines coma emma` for exact column types/keys/indexes and the six stored-procedure bodies; gates *finalizing* migrations (T2.9), not starting them
@@ -631,7 +636,7 @@ Dependency-ordered checklist (no calendar). ⛔ marks tasks blocked on stakehold
 
 ### WS-4 — Frontend (React)  *(prereq: T0.6; parallel with WS-3 via mocks)*
 - [x] T4.1 Vite + React 19 + TS (strict) scaffold (`apps/web`): TanStack Query, React Router, typed API client (stand-in for orval), login → dashboard flow against the API, protected route, Vitest + RTL tests, `vite build` green ✅ (MUI design system = T4.2, orval = T4.3, Playwright e2e = T4.17)
-- [ ] T4.2 Design system: theme tokens (light/dark), PageShell/nav, DataTable, StatusChip, EmptyState, ConfirmUndo, skeletons, env banner (prod/staging/dev color-coded)
+- [x] T4.2 Design system + screens: MUI theme (light/dark, Inter), app shell (top bar + role-aware nav rail), and real screens — login, role-aware dashboard with KPI cards, course catalog (cards + filters + status chips), course detail (overview/sessions/participants tabs), employees table, employee profile with the multi-year training-history timeline (req. #4). Verified live in-browser (Playwright screenshots) ✅ (ConfirmUndo + env banner still to add)
 - [ ] T4.3 Generated API client (orval) + TanStack Query hooks + MSW mocks from OpenAPI
 - [ ] T4.4 Auth flow: login page (or ADFS redirect), session handling, role-guarded route tree, "Developer blocked in prod" handling
 - [ ] T4.5 Catalog: series-grouped table/cards/calendar views, faceted filters (incl. delivery type, provider), saved filters, ⌘K search
