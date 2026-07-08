@@ -49,6 +49,8 @@ export const Course = z
     notes: z.string().nullable(),
     mailText: z.string().nullable(),
     type: CourseType,
+    /** Subject domain/discipline (HR-defined), e.g. "Security & Compliance", "Cloud & Infra". */
+    discipline: z.string().nullable(),
     status: CourseStatus,
     deliveryType: DeliveryType,
     platform: Platform.nullable(),
@@ -76,6 +78,7 @@ export const CreateCourseInput = z.object({
   notes: z.string().nullable().optional(),
   mailText: z.string().nullable().optional(),
   type: CourseType,
+  discipline: z.string().nullable().optional(),
   deliveryType: DeliveryType,
   platform: Platform.nullable().optional(),
   platformUrl: z.string().url().nullable().optional(),

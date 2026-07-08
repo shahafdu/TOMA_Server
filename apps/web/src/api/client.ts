@@ -1,8 +1,10 @@
 import type {
+  ComplianceReport,
   Course,
   CourseSession,
   Employee,
   EmployeeSummary,
+  MyTraining,
   PriorParticipation,
   RegistrationResult,
   Role,
@@ -86,4 +88,8 @@ export const api = {
       employeeId,
       source,
     }),
+
+  myTraining: (year: number) => request<MyTraining>('GET', `/me/training?year=${year}`),
+  compliance: (year: number) =>
+    request<ComplianceReport>('GET', `/reports/compliance?year=${year}`),
 };

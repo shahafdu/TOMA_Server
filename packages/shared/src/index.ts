@@ -15,3 +15,4 @@ export * from './course.js';
 export * from './registration.js';
 export * from './attendance.js';
 export * from './notification.js';
+export * from './reports.js';

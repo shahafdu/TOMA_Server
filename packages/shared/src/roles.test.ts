@@ -45,6 +45,7 @@ describe('Course platform refinement', () => {
     notes: null,
     mailText: null,
     type: 'technical' as const,
+    discipline: 'Engineering',
     status: 'scheduled' as const,
     isMandatory: false,
     isInternal: true,

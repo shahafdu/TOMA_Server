@@ -8,7 +8,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { Course } from '@toma/shared';
 import { Link as RouterLink } from 'react-router-dom';
-import { DeliveryChip, MandatoryChip, StatusChip, TypeChip } from '../ui/chips.js';
+import { DeliveryChip, DisciplineChip, MandatoryChip, StatusChip, TypeChip } from '../ui/chips.js';
 import { money } from '../ui/format.js';
 
 export function CourseCard({ course }: { course: Course }) {
@@ -33,6 +33,11 @@ export function CourseCard({ course }: { course: Course }) {
         <Typography variant="h6" gutterBottom sx={{ lineHeight: 1.25 }}>
           {course.title}
         </Typography>
+        {course.discipline && (
+          <Box sx={{ mb: 1 }}>
+            <DisciplineChip discipline={course.discipline} />
+          </Box>
+        )}
         <Typography variant="body2" color="text.secondary" sx={{ minHeight: 40 }}>
           {course.descriptionHtml?.replace(/<[^>]*>/g, '') || 'No description provided.'}
         </Typography>

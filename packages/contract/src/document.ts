@@ -6,6 +6,7 @@ import {
 import { z } from 'zod';
 import {
   Attendance,
+  ComplianceReport,
   Course,
   CourseSeries,
   CourseSession,
@@ -15,6 +16,7 @@ import {
   Employee,
   EmployeeId,
   EmployeeSummary,
+  MyTraining,
   NotificationRule,
   PriorParticipation,
   Registration,
@@ -69,6 +71,8 @@ registry.register('RegistrationResult', RegistrationResult);
 registry.register('Attendance', Attendance);
 registry.register('EducationHours', EducationHours);
 registry.register('NotificationRule', NotificationRule);
+registry.register('MyTraining', MyTraining);
+registry.register('ComplianceReport', ComplianceReport);
 
 function page<T extends z.ZodTypeAny>(name: string, item: T) {
   return registry.register(
@@ -349,6 +353,30 @@ registry.registerPath({
   },
   responses: {
     200: { description: 'Per-employee hours for the year', content: json(z.array(EducationHours)) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/reports/compliance',
+  tags: ['reports'],
+  summary: 'Mandatory-training compliance for the caller scope (team for managers, org for HR)',
+  request: { query: z.object({ year: z.coerce.number().int().optional() }) },
+  responses: {
+    200: { description: 'Compliance report', content: json(ComplianceReport) },
+    403: problem('Not permitted for this role'),
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/me/training',
+  tags: ['reports'],
+  summary: "The signed-in user's personal training summary (hours + required courses)",
+  request: { query: z.object({ year: z.coerce.number().int().optional() }) },
+  responses: {
+    200: { description: 'Personal training summary', content: json(MyTraining) },
+    401: problem('Not authenticated'),
   },
 });
 

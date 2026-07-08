@@ -23,13 +23,14 @@ interface CourseRow extends RowDataPacket {
   IsMandatory: number;
   IsConference: number;
   CourseType: number;
+  Discipline: string | null;
   Year: number;
   isTentative: number;
 }
 
 const COURSE_SELECT = `
   SELECT CourseID, CourseName, Syllabus, Notes, TextForMail, TotalHours, Price, Location,
-         IsIn, IsMandatory, IsConference, CourseType, Year, isTentative
+         IsIn, IsMandatory, IsConference, CourseType, Discipline, Year, isTentative
   FROM coma.courses`;
 
 @Injectable()
@@ -126,6 +127,7 @@ function mapCourse(row: CourseRow): Course {
     notes: row.Notes,
     mailText: row.TextForMail,
     type: row.IsConference ? 'conference' : row.CourseType === 0 ? 'technical' : 'enrichment',
+    discipline: row.Discipline,
     status: row.isTentative ? 'tentative' : 'scheduled',
     deliveryType: 'in_person',
     platform: null,

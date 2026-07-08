@@ -24,19 +24,21 @@ USE coma;
 INSERT INTO user_role (sircID, role) VALUES (5, 'admin'), (6, 'developer');
 
 INSERT INTO courses
-  (CourseID, CourseName, Lecturer, Syllabus, TotalHours, Price, Location, IsIn, IsMandatory, IsConference, CourseType, Year, Creator, isTentative, participantsAmountEstimated)
+  (CourseID, CourseName, Lecturer, Syllabus, TotalHours, Price, Location, IsIn, IsMandatory, IsConference, CourseType, Discipline, Year, Creator, isTentative, participantsAmountEstimated)
 VALUES
-  (101, 'Intro to TypeScript #1 2025', 'Noa Bar',   'TS basics',        8,  4000, 'Room A', 1, 0, 0, 0, 2025, 'Alice Cohen', 0, 0),
-  (201, 'Intro to TypeScript #2 2026', 'Noa Bar',   'TS basics',        8,  4500, 'Room A', 1, 0, 0, 0, 2026, 'Alice Cohen', 0, 0),
-  (202, 'Java #1 2026',                'Guy Adar',  'Java fundamentals',6,  3000, 'Room B', 1, 0, 0, 0, 2026, 'Alice Cohen', 0, 0),
-  (203, 'JavaScript #1 2026',          'Guy Adar',  'JS fundamentals',  6,  3200, 'Room B', 1, 0, 0, 0, 2026, 'Alice Cohen', 0, 0),
-  (204, 'Leadership 101 2026',         'Rina Katz', 'Leading teams',    4,  2000, 'Room C', 1, 1, 0, 1, 2026, 'Alice Cohen', 0, 0),
-  (205, 'Cloud Conf 2026',             'External',  'Cloud conference', 12, 6000, 'Expo',   0, 0, 1, 0, 2026, 'Bob Levi',    0, 0),
-  (206, 'Future AI #1 2026',           '',          '',                 5,  0,    '',       1, 0, 0, 0, 2026, 'Bob Levi',    1, 10),
-  (207, 'Kubernetes Fundamentals 2026','Guy Adar',  'Containers & K8s', 12, 5200, 'Room B', 1, 0, 0, 0, 2026, 'Alice Cohen', 0, 0),
-  (208, 'Security Awareness 2026',     'Rina Katz', 'Annual security training (mandatory for all employees)', 2, 0, 'Online', 1, 1, 0, 1, 2026, 'Alice Cohen', 0, 0),
-  (209, 'Effective Communication 2026','Rina Katz', 'Soft skills workshop', 6, 2400, 'Room C', 1, 0, 0, 1, 2026, 'Alice Cohen', 0, 0),
-  (210, 'Design Systems 2026',         'Noa Bar',   'Building scalable UI design systems', 8, 4800, 'Room A', 1, 0, 0, 0, 2026, 'Bob Levi', 0, 0);
+  (101, 'Intro to TypeScript #1 2025', 'Noa Bar',   'TS basics',        8,  4000, 'Room A', 1, 0, 0, 0, 'Engineering',          2025, 'Alice Cohen', 0, 0),
+  (201, 'Intro to TypeScript #2 2026', 'Noa Bar',   'TS basics',        8,  4500, 'Room A', 1, 0, 0, 0, 'Engineering',          2026, 'Alice Cohen', 0, 0),
+  (202, 'Java #1 2026',                'Guy Adar',  'Java fundamentals',6,  3000, 'Room B', 1, 0, 0, 0, 'Engineering',          2026, 'Alice Cohen', 0, 0),
+  (203, 'JavaScript #1 2026',          'Guy Adar',  'JS fundamentals',  6,  3200, 'Room B', 1, 0, 0, 0, 'Engineering',          2026, 'Alice Cohen', 0, 0),
+  (204, 'Leadership 101 2026',         'Rina Katz', 'Leading teams',    4,  2000, 'Room C', 1, 0, 0, 1, 'Leadership',           2026, 'Alice Cohen', 0, 0),
+  (205, 'Cloud Conf 2026',             'External',  'Cloud conference', 12, 6000, 'Expo',   0, 0, 1, 0, 'Cloud & Infra',        2026, 'Bob Levi',    0, 0),
+  (206, 'Future AI #1 2026',           '',          '',                 5,  0,    '',       1, 0, 0, 0, 'Data & AI',            2026, 'Bob Levi',    1, 10),
+  (207, 'Kubernetes Fundamentals 2026','Guy Adar',  'Containers & K8s', 12, 5200, 'Room B', 1, 0, 0, 0, 'Cloud & Infra',        2026, 'Alice Cohen', 0, 0),
+  (208, 'Security Awareness 2026',     'Rina Katz', 'Annual security training', 2, 0, 'Online', 1, 1, 0, 1, 'Security & Compliance', 2026, 'Alice Cohen', 0, 0),
+  (209, 'Effective Communication 2026','Rina Katz', 'Soft skills workshop', 6, 2400, 'Room C', 1, 0, 0, 1, 'Soft Skills',       2026, 'Alice Cohen', 0, 0),
+  (210, 'Design Systems 2026',         'Noa Bar',   'Building scalable UI design systems', 8, 4800, 'Room A', 1, 0, 0, 0, 'Product & Design', 2026, 'Bob Levi', 0, 0),
+  (211, 'Code of Conduct 2026',        'HR',        'Company code of conduct — required annually', 1, 0, 'Online', 1, 1, 0, 1, 'Security & Compliance', 2026, 'Alice Cohen', 0, 0),
+  (212, 'Data Privacy & Policy Compliance 2026', 'HR', 'Data privacy and policy compliance training', 2, 0, 'Online', 1, 1, 0, 1, 'Security & Compliance', 2026, 'Alice Cohen', 0, 0);
 
 INSERT INTO coursetodatetime (CourseID, DateTimeStart, DateTimeEnd) VALUES
   (101, '2025-03-10 09:00:00', '2025-03-10 13:00:00'),
@@ -52,7 +54,9 @@ INSERT INTO coursetodatetime (CourseID, DateTimeStart, DateTimeEnd) VALUES
   (207, '2026-10-06 09:00:00', '2026-10-06 15:00:00'),
   (208, '2026-09-01 10:00:00', '2026-09-01 12:00:00'),
   (209, '2026-07-20 13:00:00', '2026-07-20 17:00:00'),
-  (210, '2026-11-15 09:00:00', '2026-11-15 17:00:00');
+  (210, '2026-11-15 09:00:00', '2026-11-15 17:00:00'),
+  (211, '2026-02-01 10:00:00', '2026-02-01 11:00:00'),
+  (212, '2026-02-15 10:00:00', '2026-02-15 11:30:00');
 
 INSERT INTO coursetouser (CourseID, ID) VALUES
   (101, 3),
@@ -62,9 +66,12 @@ INSERT INTO coursetouser (CourseID, ID) VALUES
   (204, 2), (204, 3), (204, 4),
   (205, 2),
   (207, 4), (207, 3),
-  (208, 2), (208, 3), (208, 4),
   (209, 2), (209, 3),
-  (210, 3);
+  (210, 3),
+  -- Mandatory compliance courses apply to all working employees
+  (208, 1), (208, 2), (208, 3), (208, 4), (208, 5), (208, 6),
+  (211, 1), (211, 2), (211, 3), (211, 4), (211, 5), (211, 6),
+  (212, 1), (212, 2), (212, 3), (212, 4), (212, 5), (212, 6);
 
 INSERT INTO coursedatetimetouser (CourseID, ID, DateTimeStart, DateTimeEnd) VALUES
   (101, 3, '2025-03-10 09:00:00', '2025-03-10 13:00:00'),
@@ -72,7 +79,18 @@ INSERT INTO coursedatetimetouser (CourseID, ID, DateTimeStart, DateTimeEnd) VALU
   (201, 3, '2026-03-10 09:00:00', '2026-03-10 13:00:00'),
   (201, 3, '2026-03-11 09:00:00', '2026-03-11 13:00:00'),
   (201, 4, '2026-03-10 09:00:00', '2026-03-10 13:00:00'),
-  (204, 2, '2026-06-01 13:00:00', '2026-06-01 17:00:00');
+  (204, 2, '2026-06-01 13:00:00', '2026-06-01 17:00:00'),
+  -- Compliance completions (varied, so rates are not 100%)
+  (208, 1, '2026-09-01 10:00:00', '2026-09-01 12:00:00'),
+  (208, 2, '2026-09-01 10:00:00', '2026-09-01 12:00:00'),
+  (208, 3, '2026-09-01 10:00:00', '2026-09-01 12:00:00'),
+  (211, 1, '2026-02-01 10:00:00', '2026-02-01 11:00:00'),
+  (211, 2, '2026-02-01 10:00:00', '2026-02-01 11:00:00'),
+  (211, 3, '2026-02-01 10:00:00', '2026-02-01 11:00:00'),
+  (211, 4, '2026-02-01 10:00:00', '2026-02-01 11:00:00'),
+  (211, 5, '2026-02-01 10:00:00', '2026-02-01 11:00:00'),
+  (212, 1, '2026-02-15 10:00:00', '2026-02-15 11:30:00'),
+  (212, 2, '2026-02-15 10:00:00', '2026-02-15 11:30:00');
 
 INSERT INTO users (ID, EducationHours2024, EducationHours2025, EducationHours2026) VALUES
   (1, 0, 0, 0),

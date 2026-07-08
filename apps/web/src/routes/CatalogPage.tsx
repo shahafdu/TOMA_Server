@@ -16,6 +16,13 @@ export function CatalogPage() {
   const courses = useCourses();
   const [q, setQ] = useState('');
   const [type, setType] = useState<TypeFilter>('all');
+  const [discipline, setDiscipline] = useState('all');
+
+  const disciplines = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of courses.data ?? []) if (c.discipline) set.add(c.discipline);
+    return [...set].sort();
+  }, [courses.data]);
 
   const filtered = useMemo(() => {
     const list = courses.data ?? [];
@@ -23,9 +30,10 @@ export function CatalogPage() {
     return list.filter(
       (c) =>
         (type === 'all' || c.type === type) &&
+        (discipline === 'all' || c.discipline === discipline) &&
         (needle === '' || c.title.toLowerCase().includes(needle)),
     );
-  }, [courses.data, q, type]);
+  }, [courses.data, q, type, discipline]);
 
   return (
     <Box>
@@ -53,11 +61,26 @@ export function CatalogPage() {
         />
         <TextField
           select
+          label="Discipline"
+          value={discipline}
+          onChange={(e) => setDiscipline(e.target.value)}
+          size="small"
+          sx={{ minWidth: 200 }}
+        >
+          <MenuItem value="all">All disciplines</MenuItem>
+          {disciplines.map((d) => (
+            <MenuItem key={d} value={d}>
+              {d}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
           label="Type"
           value={type}
           onChange={(e) => setType(e.target.value as TypeFilter)}
           size="small"
-          sx={{ minWidth: 180 }}
+          sx={{ minWidth: 160 }}
         >
           <MenuItem value="all">All types</MenuItem>
           <MenuItem value="technical">Technical</MenuItem>

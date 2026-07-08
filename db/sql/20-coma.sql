@@ -16,6 +16,7 @@ CREATE TABLE courses (
   IsMandatory                  TINYINT(1)    NOT NULL DEFAULT 0,
   IsConference                 TINYINT(1)    NOT NULL DEFAULT 0,
   CourseType                   INT           NOT NULL DEFAULT 0,
+  Discipline                   VARCHAR(64)   NULL,          -- NEW (additive): subject domain
   Year                         INT           NOT NULL,
   Creator                      VARCHAR(128)  NULL,
   isTentative                  TINYINT(1)    NOT NULL DEFAULT 0,

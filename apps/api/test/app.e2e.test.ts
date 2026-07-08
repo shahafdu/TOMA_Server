@@ -169,4 +169,63 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       );
     });
   });
+
+  describe('course disciplines', () => {
+    it('exposes the discipline on courses', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.get('/api/v1/courses?year=2026');
+      const security = res.body.find((c: { title: string }) => c.title === 'Security Awareness');
+      expect(security.discipline).toBe('Security & Compliance');
+      const disciplines = new Set(res.body.map((c: { discipline: string }) => c.discipline));
+      expect(disciplines).toContain('Engineering');
+      expect(disciplines).toContain('Cloud & Infra');
+    });
+  });
+
+  describe('compliance report (big picture)', () => {
+    it('gives HR org-wide mandatory compliance with per-course rates', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.get('/api/v1/reports/compliance?year=2026');
+      expect(res.status).toBe(200);
+      expect(res.body.scope).toBe('organization');
+      expect(res.body.totalPeople).toBe(6);
+      const titles = res.body.courses.map((c: { title: string }) => c.title);
+      expect(titles).toEqual(expect.arrayContaining(['Security Awareness', 'Code of Conduct']));
+      const coc = res.body.courses.find((c: { title: string }) => c.title === 'Code of Conduct');
+      expect(coc.total).toBe(6);
+      expect(coc.completed).toBe(5); // seeded 5 of 6 attended
+      expect(res.body.overallRate).toBeGreaterThan(0);
+      expect(res.body.overallRate).toBeLessThanOrEqual(1);
+    });
+
+    it('scopes to the team for a manager', async () => {
+      const { agent } = await login('bob');
+      const res = await agent.get('/api/v1/reports/compliance?year=2026');
+      expect(res.status).toBe(200);
+      expect(res.body.scope).toBe('team');
+      expect(res.body.totalPeople).toBe(2); // Carol + Dave (Erin left)
+    });
+
+    it('forbids an employee', async () => {
+      const { agent } = await login('carol');
+      expect((await agent.get('/api/v1/reports/compliance')).status).toBe(403);
+    });
+  });
+
+  describe('personal training summary (my view)', () => {
+    it('returns hours, target and the required-course checklist', async () => {
+      const { agent } = await login('carol');
+      const res = await agent.get('/api/v1/me/training?year=2026');
+      expect(res.status).toBe(200);
+      expect(res.body.employeeId).toBe('3');
+      expect(res.body.hours).toBe(8);
+      expect(res.body.targetHours).toBe(40);
+      const coc = res.body.required.find((r: { title: string }) => r.title === 'Code of Conduct');
+      expect(coc.completed).toBe(true); // Carol attended
+      const privacy = res.body.required.find(
+        (r: { title: string }) => r.title === 'Data Privacy & Policy Compliance',
+      );
+      expect(privacy.completed).toBe(false); // Carol did not
+    });
+  });
 });

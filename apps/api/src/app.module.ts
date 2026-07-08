@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { EmployeesModule } from './employees/employees.module.js';
 import { CoursesModule } from './courses/courses.module.js';
 import { RegistrationsModule } from './registrations/registrations.module.js';
+import { ReportsModule } from './reports/reports.module.js';
 import { HealthController } from './health/health.controller.js';
 import { OpenApiController } from './openapi/openapi.controller.js';
 
@@ -23,6 +24,7 @@ import { OpenApiController } from './openapi/openapi.controller.js';
     EmployeesModule,
     CoursesModule,
     RegistrationsModule,
+    ReportsModule,
   ],
   controllers: [HealthController, OpenApiController],
 })

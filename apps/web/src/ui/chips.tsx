@@ -41,3 +41,39 @@ export function DeliveryChip({ deliveryType }: { deliveryType: Course['deliveryT
 export function MandatoryChip() {
   return <Chip size="small" color="error" variant="outlined" label="Mandatory" />;
 }
+
+// Deterministic, calm background per discipline so the catalog reads as one system.
+const DISCIPLINE_COLORS: Record<string, string> = {
+  Engineering: '#4f46e5',
+  'Data & AI': '#7c3aed',
+  'Cloud & Infra': '#0ea5e9',
+  'Security & Compliance': '#dc2626',
+  Leadership: '#d97706',
+  'Product & Design': '#0d9488',
+  'Soft Skills': '#db2777',
+};
+
+function colorFor(discipline: string): string {
+  if (DISCIPLINE_COLORS[discipline]) return DISCIPLINE_COLORS[discipline];
+  let hash = 0;
+  for (let i = 0; i < discipline.length; i++)
+    hash = discipline.charCodeAt(i) + ((hash << 5) - hash);
+  return `hsl(${Math.abs(hash) % 360} 55% 45%)`;
+}
+
+export function DisciplineChip({ discipline }: { discipline: string | null }) {
+  if (!discipline) return null;
+  const color = colorFor(discipline);
+  return (
+    <Chip
+      size="small"
+      label={discipline}
+      sx={{
+        bgcolor: `${color}1f`,
+        color,
+        fontWeight: 600,
+        border: `1px solid ${color}55`,
+      }}
+    />
+  );
+}
