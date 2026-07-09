@@ -312,16 +312,20 @@ describe('TOMA API (e2e, against mockup DB)', () => {
   });
 
   describe('registration roster (#7)', () => {
-    it("gives a manager their team with per-person eligibility and seat accounting", async () => {
+    it('gives a manager their team with per-person eligibility and seat accounting', async () => {
       const { agent } = await login('bob');
       const res = await agent.get('/api/v1/courses/207/roster');
       expect(res.status).toBe(200);
       const ids = res.body.entries.map((e: { employee: { id: string } }) => e.employee.id).sort();
       expect(ids).toEqual(['3', '4', '8', '9']); // Bob's subtree incl. contractor + student
-      const carol = res.body.entries.find((e: { employee: { id: string } }) => e.employee.id === '3');
+      const carol = res.body.entries.find(
+        (e: { employee: { id: string } }) => e.employee.id === '3',
+      );
       expect(carol.status).toBe('registered');
       expect(carol.eligible).toBe(false); // already registered
-      const frank = res.body.entries.find((e: { employee: { id: string } }) => e.employee.id === '8');
+      const frank = res.body.entries.find(
+        (e: { employee: { id: string } }) => e.employee.id === '8',
+      );
       expect(frank.eligible).toBe(true); // R&D, no exclusion on this course
       expect(res.body.availability.seatsLeft).toBe(10);
     });
@@ -559,7 +563,9 @@ describe('TOMA API (e2e, against mockup DB)', () => {
 
     it('#6/#7 HR confirms a course and participants are mailed with the dates', async () => {
       const alice = await login('alice');
-      const res = await alice.agent.post('/api/v1/courses/207/decision').send({ decision: 'confirm' });
+      const res = await alice.agent
+        .post('/api/v1/courses/207/decision')
+        .send({ decision: 'confirm' });
       expect(res.status).toBe(201);
       expect(res.body.state).toBe('confirmed');
 

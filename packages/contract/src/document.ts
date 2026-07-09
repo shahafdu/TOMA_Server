@@ -559,7 +559,9 @@ registry.registerPath({
     params: z.object({ id: z.coerce.number().int() }),
     body: { content: json(z.object({ decision: z.enum(['confirm', 'cancel']) })) },
   },
-  responses: { 200: { description: 'New lifecycle state', content: json(z.object({ state: z.string() })) } },
+  responses: {
+    200: { description: 'New lifecycle state', content: json(z.object({ state: z.string() })) },
+  },
 });
 
 // ---- Notification outbox ---------------------------------------------------------------------
@@ -580,7 +582,10 @@ registry.registerPath({
   tags: ['notifications'],
   summary: 'Dispatch due notifications (simulates the scheduled Exchange send) — HR/admin/dev',
   responses: {
-    200: { description: 'Count dispatched', content: json(z.object({ dispatched: z.number().int() })) },
+    200: {
+      description: 'Count dispatched',
+      content: json(z.object({ dispatched: z.number().int() })),
+    },
     403: problem('Not permitted for this role'),
   },
 });
@@ -627,7 +632,9 @@ registry.registerPath({
     params: z.object({ id: z.coerce.number().int() }),
     body: { content: json(SubmitJustificationInput) },
   },
-  responses: { 200: { description: 'Updated justification', content: json(AttendanceJustification) } },
+  responses: {
+    200: { description: 'Updated justification', content: json(AttendanceJustification) },
+  },
 });
 
 registry.registerPath({
@@ -639,7 +646,9 @@ registry.registerPath({
     params: z.object({ id: z.coerce.number().int() }),
     body: { content: json(ReviewJustificationInput) },
   },
-  responses: { 200: { description: 'Reviewed justification', content: json(AttendanceJustification) } },
+  responses: {
+    200: { description: 'Reviewed justification', content: json(AttendanceJustification) },
+  },
 });
 
 export function buildOpenApiDocument() {

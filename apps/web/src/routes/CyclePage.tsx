@@ -51,7 +51,10 @@ export function CyclePage() {
   const cycle = board.data?.cycle;
   const courses = board.data?.courses ?? [];
   const selectedIds = useMemo(
-    () => Object.entries(selected).filter(([, v]) => v).map(([k]) => Number(k)),
+    () =>
+      Object.entries(selected)
+        .filter(([, v]) => v)
+        .map(([k]) => Number(k)),
     [selected],
   );
 
@@ -73,7 +76,13 @@ export function CyclePage() {
                 ? 'Registration is locked — HR-only changes'
                 : undefined
         }
-        action={<Chip label={phase} color={STATUS_COLOR[phase] ?? 'default'} sx={{ textTransform: 'capitalize' }} />}
+        action={
+          <Chip
+            label={phase}
+            color={STATUS_COLOR[phase] ?? 'default'}
+            sx={{ textTransform: 'capitalize' }}
+          />
+        }
       />
 
       {phase === 'bidding' && !isHr && (
@@ -84,8 +93,9 @@ export function CyclePage() {
       )}
       {phase === 'registration' && !isHr && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Registration is open. Register your team before {formatDeadline(cycle.registrationClosesAt)};
-          after that it locks and only HR can make changes.
+          Registration is open. Register your team before{' '}
+          {formatDeadline(cycle.registrationClosesAt)}; after that it locks and only HR can make
+          changes.
         </Alert>
       )}
 
@@ -144,7 +154,12 @@ export function CyclePage() {
               Tick the courses to run next quarter and set the registration lock deadline. Unticked
               candidates are dropped.
             </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 1 }} alignItems={{ sm: 'center' }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{ mt: 1 }}
+              alignItems={{ sm: 'center' }}
+            >
               <TextField
                 type="datetime-local"
                 label="Registration closes"
@@ -155,7 +170,9 @@ export function CyclePage() {
               />
               <Button
                 variant="contained"
-                disabled={selectedIds.length === 0 || !regDeadline || actions.openRegistration.isPending}
+                disabled={
+                  selectedIds.length === 0 || !regDeadline || actions.openRegistration.isPending
+                }
                 onClick={() =>
                   actions.openRegistration.mutate({
                     cycleId: cycle.id,
@@ -164,7 +181,8 @@ export function CyclePage() {
                   })
                 }
               >
-                Open registration for {selectedIds.length} course{selectedIds.length === 1 ? '' : 's'}
+                Open registration for {selectedIds.length} course
+                {selectedIds.length === 1 ? '' : 's'}
               </Button>
             </Stack>
           </CardContent>
@@ -257,7 +275,12 @@ function CourseControls({
   return (
     <Stack direction="row" spacing={1} alignItems="center">
       {canRegister && (
-        <Button component={RouterLink} to={`/catalog/${course.courseId}`} size="small" variant="outlined">
+        <Button
+          component={RouterLink}
+          to={`/catalog/${course.courseId}`}
+          size="small"
+          variant="outlined"
+        >
           Register team
         </Button>
       )}
@@ -271,7 +294,12 @@ function CourseControls({
           >
             Confirm
           </Button>
-          <Button size="small" color="error" startIcon={<CancelIcon />} onClick={() => onDecide('cancel')}>
+          <Button
+            size="small"
+            color="error"
+            startIcon={<CancelIcon />}
+            onClick={() => onDecide('cancel')}
+          >
             Cancel
           </Button>
         </>

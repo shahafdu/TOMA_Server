@@ -51,7 +51,12 @@ export function NotificationsBell() {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{ paper: { sx: { width: 380, maxWidth: '92vw' } } }}
       >
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 2, py: 1.5 }}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          sx={{ px: 2, py: 1.5 }}
+        >
           <Typography sx={{ fontWeight: 700 }}>Notifications</Typography>
           {count > 0 && (
             <Button size="small" startIcon={<DoneAllIcon />} onClick={() => markAllRead.mutate()}>
@@ -86,11 +91,19 @@ export function NotificationsBell() {
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {n.subject}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ whiteSpace: 'nowrap' }}
+                    >
                       {timeAgo(n.sentAt ?? n.scheduledFor)}
                     </Typography>
                   </Stack>
-                  <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ whiteSpace: 'pre-line' }}
+                  >
                     {n.body.length > 140 ? `${n.body.slice(0, 140)}…` : n.body}
                   </Typography>
                   {n.sentAt == null && (

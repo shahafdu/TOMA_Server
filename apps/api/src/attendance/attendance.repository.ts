@@ -68,7 +68,12 @@ export class AttendanceRepository {
     return new Set(rows.map((r) => `${r.ID}|${r.DateTimeStart}`));
   }
 
-  async markPresent(courseId: number, employeeId: string, startSql: string, endSql: string): Promise<void> {
+  async markPresent(
+    courseId: number,
+    employeeId: string,
+    startSql: string,
+    endSql: string,
+  ): Promise<void> {
     await this.db.execute(
       `INSERT INTO coma.coursedatetimetouser (CourseID, ID, DateTimeStart, DateTimeEnd)
        SELECT ?, ?, ?, ? FROM DUAL
@@ -88,7 +93,11 @@ export class AttendanceRepository {
   }
 
   /** Open (or reuse) a no-show justification request for a missed day. */
-  async requestJustification(courseId: number, employeeId: string, sessionDate: string): Promise<void> {
+  async requestJustification(
+    courseId: number,
+    employeeId: string,
+    sessionDate: string,
+  ): Promise<void> {
     await this.db.execute(
       `INSERT INTO coma.attendance_justification (CourseID, ID, SessionDate, Status)
        VALUES (?, ?, ?, 'requested')

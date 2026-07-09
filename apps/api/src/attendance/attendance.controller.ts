@@ -9,7 +9,11 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { MarkAttendanceInput, ReviewJustificationInput, SubmitJustificationInput } from '@toma/shared';
+import {
+  MarkAttendanceInput,
+  ReviewJustificationInput,
+  SubmitJustificationInput,
+} from '@toma/shared';
 import { AuthenticatedGuard } from '../auth/authenticated.guard.js';
 import { CurrentUser, type CurrentUserInfo } from '../auth/current-user.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';

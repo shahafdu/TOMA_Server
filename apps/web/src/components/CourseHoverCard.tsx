@@ -45,7 +45,13 @@ export function CourseHoverCard({ course, role }: { course: Course; role: string
 
       <Stack spacing={0.75} sx={{ mt: 1 }}>
         <Line
-          icon={course.deliveryType === 'online' ? <VideocamIcon fontSize="inherit" /> : <PlaceIcon fontSize="inherit" />}
+          icon={
+            course.deliveryType === 'online' ? (
+              <VideocamIcon fontSize="inherit" />
+            ) : (
+              <PlaceIcon fontSize="inherit" />
+            )
+          }
           text={course.deliveryType === 'online' ? 'Online' : (course.location ?? 'In person')}
         />
 
@@ -55,7 +61,10 @@ export function CourseHoverCard({ course, role }: { course: Course; role: string
           <>
             {/* Role-aware registration status. */}
             {isOrg && (
-              <Line icon={<GroupsIcon fontSize="inherit" />} text={`${a.registered} registered${a.pending ? ` · ${a.pending} pending` : ''}`} />
+              <Line
+                icon={<GroupsIcon fontSize="inherit" />}
+                text={`${a.registered} registered${a.pending ? ` · ${a.pending} pending` : ''}`}
+              />
             )}
             {isManager && roster.data && (
               <Line

@@ -164,8 +164,12 @@ export class CyclesService {
 
     if (decision === 'cancel') {
       await this.repo.setCourseState([courseId], 'rejected', course.cycleId ?? undefined);
-      await this.notifyParticipants(courseId, 'course_cancelled', `Course cancelled: ${course.title}`, () =>
-        `The course "${course.title}" has been cancelled by HR. You have been removed from it.`,
+      await this.notifyParticipants(
+        courseId,
+        'course_cancelled',
+        `Course cancelled: ${course.title}`,
+        () =>
+          `The course "${course.title}" has been cancelled by HR. You have been removed from it.`,
       );
       return { state: 'rejected' };
     }
@@ -192,7 +196,8 @@ export class CyclesService {
         courseId,
         'course_upcoming',
         `Upcoming: ${course.title}`,
-        () => `Reminder — "${course.title}" starts soon.\n\nSchedule:\n${schedule}\n\n${locationLine(course)}`,
+        () =>
+          `Reminder — "${course.title}" starts soon.\n\nSchedule:\n${schedule}\n\n${locationLine(course)}`,
         { includeManagers: true, scheduledFor: remindAt },
       );
     }
@@ -265,7 +270,11 @@ function formatSessions(sessions: CourseSession[]): string {
     .join('\n');
 }
 
-function locationLine(course: { deliveryType: string; location: string | null; platformUrl: string | null }): string {
+function locationLine(course: {
+  deliveryType: string;
+  location: string | null;
+  platformUrl: string | null;
+}): string {
   if (course.deliveryType === 'online') return `Online: ${course.platformUrl ?? 'link to follow'}`;
   return `Location: ${course.location ?? 'to be announced'}`;
 }

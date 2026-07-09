@@ -48,11 +48,7 @@ function SeatSummary({ course }: { course: Course }) {
     <Stack direction="row" spacing={1} alignItems="center" sx={{ color: 'text.secondary' }}>
       <EventSeatIcon fontSize="small" />
       <Typography variant="body2">
-        {!a
-          ? '…'
-          : a.unlimited
-            ? 'Unlimited seats'
-            : `${a.seatsLeft} of ${a.capacity} seats left`}
+        {!a ? '…' : a.unlimited ? 'Unlimited seats' : `${a.seatsLeft} of ${a.capacity} seats left`}
         {a && a.pending > 0 ? ` · ${a.pending} pending` : ''}
         {a && a.waitlisted > 0 ? ` · ${a.waitlisted} waitlisted` : ''}
       </Typography>
@@ -86,7 +82,8 @@ export function RegistrationPanel({ course }: { course: Course }) {
         <SeatSummary course={course} />
         {a?.locked ? (
           <Alert severity="warning" sx={{ mt: 2 }}>
-            Registration is locked{isHr ? ' — as HR you can still make changes.' : ' — contact HR for changes.'}
+            Registration is locked
+            {isHr ? ' — as HR you can still make changes.' : ' — contact HR for changes.'}
           </Alert>
         ) : (
           a?.registrationClosesAt && (
@@ -129,8 +126,8 @@ function RosterList({ course, orgScope }: { course: Course; orgScope: boolean })
     <Box>
       {managerSeatsLeft != null && (
         <Alert severity={managerSeatsLeft > 0 ? 'info' : 'warning'} sx={{ mb: 2 }}>
-          You can register {managerSeatsLeft} more {managerSeatsLeft === 1 ? 'person' : 'people'} for
-          this course.
+          You can register {managerSeatsLeft} more {managerSeatsLeft === 1 ? 'person' : 'people'}{' '}
+          for this course.
         </Alert>
       )}
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -253,9 +250,7 @@ function SelfRegister({ course, employeeId }: { course: Course; employeeId: stri
 
   if (course.selfRegistration === 'none') {
     return (
-      <Alert severity="info">
-        Registration for this course is managed by your manager or HR.
-      </Alert>
+      <Alert severity="info">Registration for this course is managed by your manager or HR.</Alert>
     );
   }
 
@@ -287,9 +282,7 @@ function SelfRegister({ course, employeeId }: { course: Course; employeeId: stri
       >
         {approval ? 'Request to join' : 'Register'}
       </Button>
-      {register.isError && (
-        <Alert severity="error">{(register.error as Error).message}</Alert>
-      )}
+      {register.isError && <Alert severity="error">{(register.error as Error).message}</Alert>}
     </Stack>
   );
 }

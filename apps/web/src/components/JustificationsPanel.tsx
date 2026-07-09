@@ -11,7 +11,10 @@ import { useState } from 'react';
 import { useJustificationActions, useJustifications, useMe } from '../api/queries.js';
 import { EmptyState, Loading } from './common.js';
 
-const STATUS: Record<string, { label: string; color: 'default' | 'warning' | 'info' | 'success' | 'error' }> = {
+const STATUS: Record<
+  string,
+  { label: string; color: 'default' | 'warning' | 'info' | 'success' | 'error' }
+> = {
   requested: { label: 'Reason needed', color: 'warning' },
   submitted: { label: 'Awaiting HR review', color: 'info' },
   accepted: { label: 'Accepted', color: 'success' },
@@ -68,7 +71,13 @@ function JustificationRow({
 
   return (
     <Box sx={{ p: 2, borderRadius: 2, border: 1, borderColor: 'divider' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        flexWrap="wrap"
+        useFlexGap
+      >
         <Box>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {j.courseTitle}

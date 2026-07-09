@@ -64,9 +64,7 @@ export const Course = z
     /** Total training hours across all sessions. */
     totalHours: z.number().nonnegative(),
     /** Lightweight session date summary for cards/calendar (full sessions via the sessions endpoint). */
-    sessions: z
-      .array(z.object({ startsAt: IsoDateTime, endsAt: IsoDateTime }))
-      .default([]),
+    sessions: z.array(z.object({ startsAt: IsoDateTime, endsAt: IsoDateTime })).default([]),
     /** Budget-sensitive: masked for non-HR roles (plan §2.4). May be absent from the DTO. */
     price: z.number().nonnegative().nullable().optional(),
     /** Total seat cap. `null` = unlimited (always the case for online courses). */

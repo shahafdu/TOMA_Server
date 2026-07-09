@@ -67,9 +67,10 @@ export class CyclesRepository {
   }
 
   async findById(id: number): Promise<TrainingCycle | null> {
-    const rows = await this.db.query<CycleRow>('SELECT * FROM coma.training_cycle WHERE CycleID = ?', [
-      id,
-    ]);
+    const rows = await this.db.query<CycleRow>(
+      'SELECT * FROM coma.training_cycle WHERE CycleID = ?',
+      [id],
+    );
     return rows[0] ? mapCycle(rows[0]) : null;
   }
 
@@ -82,7 +83,10 @@ export class CyclesRepository {
   }
 
   async setStatus(id: number, status: CycleStatus): Promise<void> {
-    await this.db.execute('UPDATE coma.training_cycle SET Status = ? WHERE CycleID = ?', [status, id]);
+    await this.db.execute('UPDATE coma.training_cycle SET Status = ? WHERE CycleID = ?', [
+      status,
+      id,
+    ]);
   }
 
   async setBiddingDeadline(id: number, closesAt: string): Promise<void> {

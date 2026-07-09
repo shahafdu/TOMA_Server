@@ -145,7 +145,10 @@ export function useManageRegistration(courseId: number) {
 // ---- Quarterly cycle workflow ----
 
 export function useCycleBoard(cycleId?: number) {
-  return useQuery({ queryKey: ['cycle', 'board', cycleId ?? 0], queryFn: () => api.cycleBoard(cycleId) });
+  return useQuery({
+    queryKey: ['cycle', 'board', cycleId ?? 0],
+    queryFn: () => api.cycleBoard(cycleId),
+  });
 }
 
 export function useCourseBids(courseId: number, enabled = true) {
@@ -208,8 +211,14 @@ export function useNotificationActions() {
   const qc = useQueryClient();
   const invalidate = () => void qc.invalidateQueries({ queryKey: ['notifications'] });
   return {
-    markRead: useMutation({ mutationFn: (id: number) => api.markNotificationRead(id), onSuccess: invalidate }),
-    markAllRead: useMutation({ mutationFn: () => api.markAllNotificationsRead(), onSuccess: invalidate }),
+    markRead: useMutation({
+      mutationFn: (id: number) => api.markNotificationRead(id),
+      onSuccess: invalidate,
+    }),
+    markAllRead: useMutation({
+      mutationFn: () => api.markAllNotificationsRead(),
+      onSuccess: invalidate,
+    }),
     dispatch: useMutation({ mutationFn: () => api.dispatchNotifications(), onSuccess: invalidate }),
   };
 }

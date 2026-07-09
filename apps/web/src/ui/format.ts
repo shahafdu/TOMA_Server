@@ -72,7 +72,8 @@ export function dateRangeLabel(sessions: Session[]): string | null {
   if (sameDay) return formatDate(sorted[0]!.startsAt);
 
   const day = (d: Date) => d.getDate();
-  const monthYear = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  const monthYear = (d: Date) =>
+    d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   const month = (d: Date) => d.toLocaleDateString(undefined, { month: 'short' });
 
   if (first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear()) {

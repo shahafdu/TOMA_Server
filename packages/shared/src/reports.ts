@@ -84,8 +84,6 @@ export const BudgetReport = z.object({
   year: z.number().int(),
   budget: z.number().nonnegative(),
   committed: z.number().nonnegative(),
-  byDiscipline: z.array(
-    z.object({ discipline: z.string(), amount: z.number().nonnegative() }),
-  ),
+  byDiscipline: z.array(z.object({ discipline: z.string(), amount: z.number().nonnegative() })),
 });
 export type BudgetReport = z.infer<typeof BudgetReport>;

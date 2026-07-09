@@ -33,7 +33,8 @@ export class ReportsController {
     @Query('scope') scopeParam?: string,
     @Query('year') year?: string,
   ) {
-    const scope: AttendanceReport['scope'] = scopeParam === 'organization' ? 'organization' : 'team';
+    const scope: AttendanceReport['scope'] =
+      scopeParam === 'organization' ? 'organization' : 'team';
     // Whole-org attendance is HR/admin only; team scope is anyone with reports.
     if (scope === 'organization' && !ORG_ROLES.includes(user.role)) {
       throw new ForbiddenException({ error: 'Not permitted for this role' });

@@ -221,7 +221,12 @@ export class RegistrationsService {
 
     const next: RegistrationStatus =
       action === 'approve' ? 'registered' : action === 'decline' ? 'declined' : 'cancelled';
-    await this.repo.updateStatus(courseId, employeeId, next, action === 'approve' ? caller.userId : null);
+    await this.repo.updateStatus(
+      courseId,
+      employeeId,
+      next,
+      action === 'approve' ? caller.userId : null,
+    );
 
     // Freeing a confirmed seat promotes the next waitlisted person (#5).
     if ((action === 'cancel' || action === 'decline') && current === 'registered') {

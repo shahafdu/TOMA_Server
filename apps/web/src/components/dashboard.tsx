@@ -147,7 +147,8 @@ export function CompliancePanel({ report }: { report: ComplianceReport }) {
 
 export function BudgetPanel({ report }: { report: BudgetReport }) {
   const remaining = report.budget - report.committed;
-  const pct = report.budget > 0 ? Math.min(100, Math.round((report.committed / report.budget) * 100)) : 0;
+  const pct =
+    report.budget > 0 ? Math.min(100, Math.round((report.committed / report.budget) * 100)) : 0;
   const over = remaining < 0;
   const maxDiscipline = Math.max(1, ...report.byDiscipline.map((d) => d.amount));
   return (

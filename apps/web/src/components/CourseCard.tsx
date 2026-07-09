@@ -91,7 +91,9 @@ export function CourseCard({ course }: { course: Course }) {
                 <QuarterChip key={q} quarter={q} />
               ))}
               {range && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                <Box
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}
+                >
                   <CalendarMonthIcon fontSize="small" />
                   <Typography variant="body2">{range}</Typography>
                 </Box>

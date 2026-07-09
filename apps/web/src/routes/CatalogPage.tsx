@@ -59,9 +59,7 @@ export function CatalogPage() {
         (discipline === 'all' || c.discipline === discipline) &&
         (needle === '' || c.title.toLowerCase().includes(needle)) &&
         // A custom date range takes precedence over the quarter selector.
-        (hasRange
-          ? inRange(c, from, to)
-          : quarter === 'all' || inQuarter(c, quarter)),
+        (hasRange ? inRange(c, from, to) : quarter === 'all' || inQuarter(c, quarter)),
     );
   }, [courses.data, q, type, discipline, quarter, from, to, hasRange]);
 
