@@ -3,7 +3,7 @@ node_modules/
 .pnp
 .pnp.js
 
-# Build output (note: legacy-client/build/ holds committed source, not output)
+# Build output
 dist/
 out/
 *.tsbuildinfo

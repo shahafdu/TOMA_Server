@@ -1,9 +1,6 @@
-# TOMA modern monorepo CI (GitLab). Mirrors .github/workflows/ci.yml — both call ci/*.sh so
+# TOMA monorepo CI (GitLab). Mirrors .github/workflows/ci.yml — both call ci/*.sh so
 # they cannot drift (plan §2.9). GitLab Free tier only: plain stages/jobs, cache, artifacts,
 # rules, services — no Premium/Ultimate features (no merge trains, no security-dashboard scanners).
-#
-# The legacy client (legacy-client/) and server (backend/) keep their own pipelines
-# (backend/.gitlab-ci.yml, legacy Jenkins) and are not built here.
 
 default:
   image: node:22-alpine

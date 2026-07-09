@@ -1,7 +1,7 @@
 # Legacy Database Schema (reverse-engineered)
 
-**Status:** reverse-engineered from `backend/` SQL and `backend/emma.users.md`. Column **types,
-keys, and indexes are inferred, not authoritative** — confirm with a real dump (plan task T0.1):
+**Status:** reverse-engineered from the legacy server SQL and [`emma-users.md`](./emma-users.md).
+Column **types, keys, and indexes are inferred, not authoritative** — confirm with a real dump:
 
 ```bash
 mysqldump --no-data --routines coma emma > docs/schema.sql
@@ -100,7 +100,7 @@ Populated monthly by `spr_monthlyUpdateHoursPerMonthPerManager` (a Jenkins cron 
 ## `emma` schema (read-only)
 
 ### `emma.users`
-Documented in `backend/emma.users.md`. Fed from **Workday**. Key columns TOMA relies on:
+Documented in [`emma-users.md`](./emma-users.md). Fed from **Workday**. Key columns TOMA relies on:
 
 | Column | Notes |
 |---|---|

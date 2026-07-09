@@ -1,5 +1,5 @@
 -- emma schema (employee master). In production this is owned by the Emma app and fed from
--- Workday; TOMA reads it. Column set mirrors backend/emma.users.md (subset TOMA uses).
+-- Workday; TOMA reads it. Column set mirrors docs/emma-users.md (subset TOMA uses).
 USE emma;
 
 CREATE TABLE users (
