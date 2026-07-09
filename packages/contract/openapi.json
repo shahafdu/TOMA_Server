@@ -31,6 +31,9 @@
     },
     {
       "name": "reports"
+    },
+    {
+      "name": "cycles"
     }
   ],
   "components": {
@@ -481,6 +484,27 @@
               "null"
             ],
             "minLength": 1
+          },
+          "cycleId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "default": null
+          },
+          "lifecycleState": {
+            "type": "string",
+            "enum": [
+              "catalog",
+              "candidate",
+              "bidding",
+              "open",
+              "locked",
+              "confirmed",
+              "rejected"
+            ],
+            "default": "catalog"
           }
         },
         "required": [
@@ -955,7 +979,18 @@
               "course_requested",
               "session_reminder",
               "attendance_missing",
-              "feedback_request"
+              "feedback_request",
+              "bidding_opened",
+              "bidding_reminder",
+              "registration_opened",
+              "registration_reminder",
+              "registration_locked",
+              "registration_confirmed",
+              "course_confirmed",
+              "course_cancelled",
+              "course_upcoming",
+              "justification_requested",
+              "justification_reviewed"
             ]
           },
           "offsetDays": {
@@ -1398,6 +1433,11 @@
             "type": "integer",
             "minimum": 0
           },
+          "waitlisted": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
           "seatsLeft": {
             "type": [
               "integer",
@@ -1427,6 +1467,18 @@
               "cancelled"
             ],
             "default": null
+          },
+          "registrationClosesAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "default": null
+          },
+          "locked": {
+            "type": "boolean",
+            "default": false
           }
         },
         "required": [
@@ -1463,6 +1515,11 @@
                 "type": "integer",
                 "minimum": 0
               },
+              "waitlisted": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0
+              },
               "seatsLeft": {
                 "type": [
                   "integer",
@@ -1492,6 +1549,18 @@
                   "cancelled"
                 ],
                 "default": null
+              },
+              "registrationClosesAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "default": null
+              },
+              "locked": {
+                "type": "boolean",
+                "default": false
               }
             },
             "required": [
@@ -1619,6 +1688,426 @@
           "managerSeatsUsed",
           "managerSeatsLeft",
           "entries"
+        ]
+      },
+      "TrainingCycle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2100
+          },
+          "quarter": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "bidding",
+              "registration",
+              "locked",
+              "completed"
+            ]
+          },
+          "biddingClosesAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "registrationClosesAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "year",
+          "quarter",
+          "status",
+          "biddingClosesAt",
+          "registrationClosesAt",
+          "createdAt"
+        ]
+      },
+      "CycleBoard": {
+        "type": "object",
+        "properties": {
+          "cycle": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "year": {
+                "type": "integer",
+                "minimum": 2000,
+                "maximum": 2100
+              },
+              "quarter": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "bidding",
+                  "registration",
+                  "locked",
+                  "completed"
+                ]
+              },
+              "biddingClosesAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "registrationClosesAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "year",
+              "quarter",
+              "status",
+              "biddingClosesAt",
+              "registrationClosesAt",
+              "createdAt"
+            ]
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "courseId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "title": {
+                  "type": "string"
+                },
+                "discipline": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "lifecycleState": {
+                  "type": "string"
+                },
+                "capacity": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "totalBidSeats": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "registeredCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "waitlistedCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "myBidSeats": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "courseId",
+                "title",
+                "discipline",
+                "lifecycleState",
+                "capacity",
+                "totalBidSeats",
+                "registeredCount",
+                "waitlistedCount",
+                "myBidSeats"
+              ]
+            }
+          }
+        },
+        "required": [
+          "cycle",
+          "courses"
+        ]
+      },
+      "CourseBid": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "managerId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "managerName": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "courseId",
+          "managerId",
+          "managerName",
+          "seats",
+          "updatedAt"
+        ]
+      },
+      "NotificationMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "registration_created",
+              "self_registration_requested",
+              "registration_cancelled",
+              "registration_approved",
+              "waitlist_promoted",
+              "course_requested",
+              "session_reminder",
+              "attendance_missing",
+              "feedback_request",
+              "bidding_opened",
+              "bidding_reminder",
+              "registration_opened",
+              "registration_reminder",
+              "registration_locked",
+              "registration_confirmed",
+              "course_confirmed",
+              "course_cancelled",
+              "course_upcoming",
+              "justification_requested",
+              "justification_reviewed"
+            ]
+          },
+          "recipientId": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "courseId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          },
+          "cycleId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "scheduledFor": {
+            "type": "string"
+          },
+          "sentAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "readAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event",
+          "recipientId",
+          "subject",
+          "body",
+          "courseId",
+          "cycleId",
+          "scheduledFor",
+          "sentAt",
+          "readAt",
+          "createdAt"
+        ]
+      },
+      "AttendanceGrid": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "integer"
+          },
+          "courseTitle": {
+            "type": "string"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startsAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "endsAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "startsAt",
+                "endsAt"
+              ]
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "employeeId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "employeeName": {
+                  "type": "string"
+                },
+                "present": {
+                  "type": "array",
+                  "items": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "required": [
+                "employeeId",
+                "employeeName",
+                "present"
+              ]
+            }
+          }
+        },
+        "required": [
+          "courseId",
+          "courseTitle",
+          "sessions",
+          "rows"
+        ]
+      },
+      "AttendanceJustification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "courseId": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "courseTitle": {
+            "type": "string"
+          },
+          "employeeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "sessionDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "submitted",
+              "accepted",
+              "rejected"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "courseId",
+          "courseTitle",
+          "employeeId",
+          "employeeName",
+          "sessionDate",
+          "reason",
+          "status",
+          "createdAt"
         ]
       },
       "EmployeePage": {
@@ -1892,6 +2381,27 @@
                     "null"
                   ],
                   "minLength": 1
+                },
+                "cycleId": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "exclusiveMinimum": 0,
+                  "default": null
+                },
+                "lifecycleState": {
+                  "type": "string",
+                  "enum": [
+                    "catalog",
+                    "candidate",
+                    "bidding",
+                    "open",
+                    "locked",
+                    "confirmed",
+                    "rejected"
+                  ],
+                  "default": "catalog"
                 }
               },
               "required": [
@@ -2699,6 +3209,27 @@
                         "null"
                       ],
                       "minLength": 1
+                    },
+                    "cycleId": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0,
+                      "default": null
+                    },
+                    "lifecycleState": {
+                      "type": "string",
+                      "enum": [
+                        "catalog",
+                        "candidate",
+                        "bidding",
+                        "open",
+                        "locked",
+                        "confirmed",
+                        "rejected"
+                      ],
+                      "default": "catalog"
                     }
                   },
                   "required": [
@@ -2952,6 +3483,27 @@
                         "null"
                       ],
                       "minLength": 1
+                    },
+                    "cycleId": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0,
+                      "default": null
+                    },
+                    "lifecycleState": {
+                      "type": "string",
+                      "enum": [
+                        "catalog",
+                        "candidate",
+                        "bidding",
+                        "open",
+                        "locked",
+                        "confirmed",
+                        "rejected"
+                      ],
+                      "default": "catalog"
                     }
                   },
                   "required": [
@@ -3352,6 +3904,27 @@
                         "null"
                       ],
                       "minLength": 1
+                    },
+                    "cycleId": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0,
+                      "default": null
+                    },
+                    "lifecycleState": {
+                      "type": "string",
+                      "enum": [
+                        "catalog",
+                        "candidate",
+                        "bidding",
+                        "open",
+                        "locked",
+                        "confirmed",
+                        "rejected"
+                      ],
+                      "default": "catalog"
                     }
                   },
                   "required": [
@@ -3525,6 +4098,11 @@
                           "type": "integer",
                           "minimum": 0
                         },
+                        "waitlisted": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0
+                        },
                         "seatsLeft": {
                           "type": [
                             "integer",
@@ -3554,6 +4132,18 @@
                             "cancelled"
                           ],
                           "default": null
+                        },
+                        "registrationClosesAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time",
+                          "default": null
+                        },
+                        "locked": {
+                          "type": "boolean",
+                          "default": false
                         }
                       },
                       "required": [
@@ -3754,6 +4344,11 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "waitlisted": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 0
+                    },
                     "seatsLeft": {
                       "type": [
                         "integer",
@@ -3783,6 +4378,18 @@
                         "cancelled"
                       ],
                       "default": null
+                    },
+                    "registrationClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "default": false
                     }
                   },
                   "required": [
@@ -4524,7 +5131,18 @@
                           "course_requested",
                           "session_reminder",
                           "attendance_missing",
-                          "feedback_request"
+                          "feedback_request",
+                          "bidding_opened",
+                          "bidding_reminder",
+                          "registration_opened",
+                          "registration_reminder",
+                          "registration_locked",
+                          "registration_confirmed",
+                          "course_confirmed",
+                          "course_cancelled",
+                          "course_upcoming",
+                          "justification_requested",
+                          "justification_reviewed"
                         ]
                       },
                       "offsetDays": {
@@ -4791,7 +5409,18 @@
                       "course_requested",
                       "session_reminder",
                       "attendance_missing",
-                      "feedback_request"
+                      "feedback_request",
+                      "bidding_opened",
+                      "bidding_reminder",
+                      "registration_opened",
+                      "registration_reminder",
+                      "registration_locked",
+                      "registration_confirmed",
+                      "course_confirmed",
+                      "course_cancelled",
+                      "course_upcoming",
+                      "justification_requested",
+                      "justification_reviewed"
                     ]
                   },
                   "offsetDays": {
@@ -5042,7 +5671,18 @@
                         "course_requested",
                         "session_reminder",
                         "attendance_missing",
-                        "feedback_request"
+                        "feedback_request",
+                        "bidding_opened",
+                        "bidding_reminder",
+                        "registration_opened",
+                        "registration_reminder",
+                        "registration_locked",
+                        "registration_confirmed",
+                        "course_confirmed",
+                        "course_cancelled",
+                        "course_upcoming",
+                        "justification_requested",
+                        "justification_reviewed"
                       ]
                     },
                     "offsetDays": {
@@ -5729,6 +6369,1367 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cycles/board": {
+      "get": {
+        "tags": [
+          "cycles"
+        ],
+        "summary": "A cycle's bidding/registration board, scoped to the caller (manager bids / HR review)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "cycleId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The cycle board",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cycle": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "year": {
+                          "type": "integer",
+                          "minimum": 2000,
+                          "maximum": 2100
+                        },
+                        "quarter": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 4
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "bidding",
+                            "registration",
+                            "locked",
+                            "completed"
+                          ]
+                        },
+                        "biddingClosesAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "registrationClosesAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "year",
+                        "quarter",
+                        "status",
+                        "biddingClosesAt",
+                        "registrationClosesAt",
+                        "createdAt"
+                      ]
+                    },
+                    "courses": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "courseId": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "discipline": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "lifecycleState": {
+                            "type": "string"
+                          },
+                          "capacity": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "totalBidSeats": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "registeredCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "waitlistedCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "myBidSeats": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ],
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "courseId",
+                          "title",
+                          "discipline",
+                          "lifecycleState",
+                          "capacity",
+                          "totalBidSeats",
+                          "registeredCount",
+                          "waitlistedCount",
+                          "myBidSeats"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "cycle",
+                    "courses"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cycles": {
+      "post": {
+        "tags": [
+          "cycles"
+        ],
+        "summary": "Create a quarterly training cycle (HR)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "quarter": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4
+                  }
+                },
+                "required": [
+                  "year",
+                  "quarter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created cycle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 2000,
+                      "maximum": 2100
+                    },
+                    "quarter": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "bidding",
+                        "registration",
+                        "locked",
+                        "completed"
+                      ]
+                    },
+                    "biddingClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "registrationClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "year",
+                    "quarter",
+                    "status",
+                    "biddingClosesAt",
+                    "registrationClosesAt",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cycles/{id}/open-bidding": {
+      "post": {
+        "tags": [
+          "cycles"
+        ],
+        "summary": "HR opens bidding on candidate courses with a deadline; managers are mailed (req. #1)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "biddingClosesAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "courseIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "biddingClosesAt",
+                  "courseIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated cycle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 2000,
+                      "maximum": 2100
+                    },
+                    "quarter": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "bidding",
+                        "registration",
+                        "locked",
+                        "completed"
+                      ]
+                    },
+                    "biddingClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "registrationClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "year",
+                    "quarter",
+                    "status",
+                    "biddingClosesAt",
+                    "registrationClosesAt",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cycles/{id}/open-registration": {
+      "post": {
+        "tags": [
+          "cycles"
+        ],
+        "summary": "HR opens registration for chosen courses with a lock deadline; managers mailed (#2)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "registrationClosesAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "courseIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "registrationClosesAt",
+                  "courseIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated cycle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 2000,
+                      "maximum": 2100
+                    },
+                    "quarter": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "bidding",
+                        "registration",
+                        "locked",
+                        "completed"
+                      ]
+                    },
+                    "biddingClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "registrationClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "year",
+                    "quarter",
+                    "status",
+                    "biddingClosesAt",
+                    "registrationClosesAt",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cycles/{id}/lock": {
+      "post": {
+        "tags": [
+          "cycles"
+        ],
+        "summary": "Lock registration for a cycle — only HR can change registrations afterwards (#4)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Locked cycle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 2000,
+                      "maximum": 2100
+                    },
+                    "quarter": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "bidding",
+                        "registration",
+                        "locked",
+                        "completed"
+                      ]
+                    },
+                    "biddingClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "registrationClosesAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "year",
+                    "quarter",
+                    "status",
+                    "biddingClosesAt",
+                    "registrationClosesAt",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/bid": {
+      "post": {
+        "tags": [
+          "cycles"
+        ],
+        "summary": "Set a manager's bid (seats wanted) on a candidate course (requirement #1)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "seats": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "seats"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Bid saved"
+          },
+          "403": {
+            "description": "Bidding closed / not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/bids": {
+      "get": {
+        "tags": [
+          "cycles"
+        ],
+        "summary": "All managers’ bids on a candidate course (HR review, requirement #2)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bids",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "courseId": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "managerId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "managerName": {
+                        "type": "string"
+                      },
+                      "seats": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "courseId",
+                      "managerId",
+                      "managerName",
+                      "seats",
+                      "updatedAt"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/decision": {
+      "post": {
+        "tags": [
+          "cycles"
+        ],
+        "summary": "HR confirms or cancels a course by participant numbers; participants mailed (#6/#7/#8)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "confirm",
+                      "cancel"
+                    ]
+                  }
+                },
+                "required": [
+                  "decision"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New lifecycle state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "The signed-in user’s notification inbox (outbox stand-in for Exchange mail)",
+        "responses": {
+          "200": {
+            "description": "Messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "event": {
+                        "type": "string",
+                        "enum": [
+                          "registration_created",
+                          "self_registration_requested",
+                          "registration_cancelled",
+                          "registration_approved",
+                          "waitlist_promoted",
+                          "course_requested",
+                          "session_reminder",
+                          "attendance_missing",
+                          "feedback_request",
+                          "bidding_opened",
+                          "bidding_reminder",
+                          "registration_opened",
+                          "registration_reminder",
+                          "registration_locked",
+                          "registration_confirmed",
+                          "course_confirmed",
+                          "course_cancelled",
+                          "course_upcoming",
+                          "justification_requested",
+                          "justification_reviewed"
+                        ]
+                      },
+                      "recipientId": {
+                        "type": "string"
+                      },
+                      "subject": {
+                        "type": "string"
+                      },
+                      "body": {
+                        "type": "string"
+                      },
+                      "courseId": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "exclusiveMinimum": 0
+                      },
+                      "cycleId": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "scheduledFor": {
+                        "type": "string"
+                      },
+                      "sentAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "readAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "event",
+                      "recipientId",
+                      "subject",
+                      "body",
+                      "courseId",
+                      "cycleId",
+                      "scheduledFor",
+                      "sentAt",
+                      "readAt",
+                      "createdAt"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/dispatch": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Dispatch due notifications (simulates the scheduled Exchange send) — HR/admin/dev",
+        "responses": {
+          "200": {
+            "description": "Count dispatched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dispatched": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "dispatched"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/attendance-grid": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "The per-day attendance grid HR fills in at the end of each course day (requirement #9)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attendance grid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "courseId": {
+                      "type": "integer"
+                    },
+                    "courseTitle": {
+                      "type": "string"
+                    },
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "startsAt",
+                          "endsAt"
+                        ]
+                      }
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "employeeId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "employeeName": {
+                            "type": "string"
+                          },
+                          "present": {
+                            "type": "array",
+                            "items": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "required": [
+                          "employeeId",
+                          "employeeName",
+                          "present"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "courseId",
+                    "courseTitle",
+                    "sessions",
+                    "rows"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/attendance": {
+      "put": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "HR marks one person present/absent for one day; an absence opens a justification (#9)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sessionStart": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "present": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "sessionStart",
+                  "present"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Recorded"
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/justifications": {
+      "get": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "No-show justifications visible to the caller (HR: all; manager: team; employee: own)",
+        "responses": {
+          "200": {
+            "description": "Justifications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "courseId": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "courseTitle": {
+                        "type": "string"
+                      },
+                      "employeeId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "employeeName": {
+                        "type": "string"
+                      },
+                      "sessionDate": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "reason": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "requested",
+                          "submitted",
+                          "accepted",
+                          "rejected"
+                        ]
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "courseId",
+                      "courseTitle",
+                      "employeeId",
+                      "employeeName",
+                      "sessionDate",
+                      "reason",
+                      "status",
+                      "createdAt"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/justifications/{id}/submit": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "Submit a reason for a no-show (employee or their manager)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated justification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "courseId": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "courseTitle": {
+                      "type": "string"
+                    },
+                    "employeeId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "employeeName": {
+                      "type": "string"
+                    },
+                    "sessionDate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requested",
+                        "submitted",
+                        "accepted",
+                        "rejected"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "courseId",
+                    "courseTitle",
+                    "employeeId",
+                    "employeeName",
+                    "sessionDate",
+                    "reason",
+                    "status",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/justifications/{id}/review": {
+      "post": {
+        "tags": [
+          "attendance"
+        ],
+        "summary": "HR accepts or rejects a submitted justification",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "accept",
+                      "reject"
+                    ]
+                  }
+                },
+                "required": [
+                  "decision"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reviewed justification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "courseId": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "courseTitle": {
+                      "type": "string"
+                    },
+                    "employeeId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "employeeName": {
+                      "type": "string"
+                    },
+                    "sessionDate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requested",
+                        "submitted",
+                        "accepted",
+                        "rejected"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "courseId",
+                    "courseTitle",
+                    "employeeId",
+                    "employeeName",
+                    "sessionDate",
+                    "reason",
+                    "status",
+                    "createdAt"
+                  ]
                 }
               }
             }

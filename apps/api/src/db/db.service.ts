@@ -1,5 +1,5 @@
 import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
-import mysql, { type Pool, type RowDataPacket } from 'mysql2/promise';
+import mysql, { type Pool, type ResultSetHeader, type RowDataPacket } from 'mysql2/promise';
 import { APP_CONFIG, type AppConfig } from '../config/config.js';
 
 /**
@@ -30,6 +30,12 @@ export class DbService implements OnModuleDestroy {
   async query<T extends RowDataPacket>(sql: string, params: unknown[] = []): Promise<T[]> {
     const [rows] = await this.pool.query<T[]>(sql, params);
     return rows;
+  }
+
+  /** For INSERT/UPDATE/DELETE — returns the result header (affectedRows, insertId, …). */
+  async execute(sql: string, params: unknown[] = []): Promise<ResultSetHeader> {
+    const [result] = await this.pool.query<ResultSetHeader>(sql, params);
+    return result;
   }
 
   async onModuleDestroy(): Promise<void> {

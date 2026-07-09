@@ -86,19 +86,34 @@ export class RegistrationsRepository {
     return map;
   }
 
-  /** Registered / pending head-counts for a course (drives seat availability). */
-  async statusCounts(courseId: number): Promise<{ registered: number; pending: number }> {
+  /** Registered / pending / waitlisted head-counts for a course (drives seat availability). */
+  async statusCounts(
+    courseId: number,
+  ): Promise<{ registered: number; pending: number; waitlisted: number }> {
     const rows = await this.db.query<StatusCountRow>(
       `SELECT status, COUNT(*) AS c FROM coma.coursetouser WHERE CourseID = ? GROUP BY status`,
       [courseId],
     );
     let registered = 0;
     let pending = 0;
+    let waitlisted = 0;
     for (const r of rows) {
       if (r.status === 'registered') registered = Number(r.c);
       else if (r.status === 'pending_approval') pending = Number(r.c);
+      else if (r.status === 'waitlisted') waitlisted = Number(r.c);
     }
-    return { registered, pending };
+    return { registered, pending, waitlisted };
+  }
+
+  /** The earliest-registered waitlisted person on a course (for promotion when a seat frees). */
+  async earliestWaitlisted(courseId: number): Promise<string | null> {
+    const rows = await this.db.query<RegStatusRow>(
+      `SELECT ID, status FROM coma.coursetouser
+       WHERE CourseID = ? AND status = 'waitlisted'
+       ORDER BY createdAt ASC, ID ASC LIMIT 1`,
+      [courseId],
+    );
+    return rows[0] ? String(rows[0].ID) : null;
   }
 
   async statusOf(courseId: number, employeeId: string): Promise<RegistrationStatus | null> {

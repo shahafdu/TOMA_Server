@@ -48,3 +48,27 @@ export type RegistrationSource = z.infer<typeof RegistrationSource>;
 /** Employment status as fed from Workday into `emma.users.status`. */
 export const EmployeeStatus = z.enum(['working', 'left', 'deleted']);
 export type EmployeeStatus = z.infer<typeof EmployeeStatus>;
+
+/** Calendar quarter 1..4 (bidding/registration lifecycle epic). */
+export const Quarter = z.number().int().min(1).max(4);
+export type Quarter = z.infer<typeof Quarter>;
+
+/** Phase of a quarterly training cycle. */
+export const CycleStatus = z.enum(['draft', 'bidding', 'registration', 'locked', 'completed']);
+export type CycleStatus = z.infer<typeof CycleStatus>;
+
+/** A course's state within its quarterly cycle's workflow. */
+export const CourseLifecycleState = z.enum([
+  'catalog', // ad-hoc catalog course, not part of a managed cycle
+  'candidate', // added to a cycle, bidding not yet open
+  'bidding', // managers are bidding seats
+  'open', // HR opened it for active registration
+  'locked', // registration deadline passed — HR-only changes
+  'confirmed', // HR confirmed it runs
+  'rejected', // HR cancelled it (too few participants)
+]);
+export type CourseLifecycleState = z.infer<typeof CourseLifecycleState>;
+
+/** No-show justification lifecycle (requirement #9). */
+export const JustificationStatus = z.enum(['requested', 'submitted', 'accepted', 'rejected']);
+export type JustificationStatus = z.infer<typeof JustificationStatus>;

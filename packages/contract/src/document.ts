@@ -6,27 +6,40 @@ import {
 import { z } from 'zod';
 import {
   Attendance,
+  AttendanceGrid,
+  AttendanceJustification,
   AttendanceReport,
   BudgetReport,
   ComplianceReport,
   Course,
   CourseAvailability,
+  CourseBid,
   CourseRoster,
   CourseSeries,
   CourseSession,
   CreateCourseInput,
+  CreateCycleInput,
   CreateRegistrationInput,
+  CycleBoard,
   EducationHours,
   Employee,
   EmployeeId,
   EmployeeSummary,
+  MarkAttendanceInput,
   MyTraining,
+  NotificationMessage,
   NotificationRule,
+  OpenBiddingInput,
+  OpenRegistrationInput,
   PriorParticipation,
   Registration,
   RegistrationResult,
+  ReviewJustificationInput,
   Role,
   SetAttendanceInput,
+  SetBidInput,
+  SubmitJustificationInput,
+  TrainingCycle,
   UpdateCourseInput,
   UpsertNotificationRuleInput,
 } from '@toma/shared';
@@ -83,6 +96,12 @@ registry.register('BudgetReport', BudgetReport);
 registry.register('AttendanceReport', AttendanceReport);
 registry.register('CourseAvailability', CourseAvailability);
 registry.register('CourseRoster', CourseRoster);
+registry.register('TrainingCycle', TrainingCycle);
+registry.register('CycleBoard', CycleBoard);
+registry.register('CourseBid', CourseBid);
+registry.register('NotificationMessage', NotificationMessage);
+registry.register('AttendanceGrid', AttendanceGrid);
+registry.register('AttendanceJustification', AttendanceJustification);
 
 function page<T extends z.ZodTypeAny>(name: string, item: T) {
   return registry.register(
@@ -451,6 +470,178 @@ registry.registerPath({
   },
 });
 
+// ---- Quarterly bidding / registration lifecycle ---------------------------------------------
+
+registry.registerPath({
+  method: 'get',
+  path: '/cycles/board',
+  tags: ['cycles'],
+  summary: "A cycle's bidding/registration board, scoped to the caller (manager bids / HR review)",
+  request: { query: z.object({ cycleId: z.coerce.number().int().optional() }) },
+  responses: {
+    200: { description: 'The cycle board', content: json(CycleBoard) },
+    403: problem('Not permitted for this role'),
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/cycles',
+  tags: ['cycles'],
+  summary: 'Create a quarterly training cycle (HR)',
+  request: { body: { content: json(CreateCycleInput) } },
+  responses: {
+    201: { description: 'Created cycle', content: json(TrainingCycle) },
+    403: problem('Not permitted for this role'),
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/cycles/{id}/open-bidding',
+  tags: ['cycles'],
+  summary: 'HR opens bidding on candidate courses with a deadline; managers are mailed (req. #1)',
+  request: {
+    params: z.object({ id: z.coerce.number().int() }),
+    body: { content: json(OpenBiddingInput) },
+  },
+  responses: { 200: { description: 'Updated cycle', content: json(TrainingCycle) } },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/cycles/{id}/open-registration',
+  tags: ['cycles'],
+  summary: 'HR opens registration for chosen courses with a lock deadline; managers mailed (#2)',
+  request: {
+    params: z.object({ id: z.coerce.number().int() }),
+    body: { content: json(OpenRegistrationInput) },
+  },
+  responses: { 200: { description: 'Updated cycle', content: json(TrainingCycle) } },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/cycles/{id}/lock',
+  tags: ['cycles'],
+  summary: 'Lock registration for a cycle — only HR can change registrations afterwards (#4)',
+  request: { params: z.object({ id: z.coerce.number().int() }) },
+  responses: { 200: { description: 'Locked cycle', content: json(TrainingCycle) } },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/courses/{id}/bid',
+  tags: ['cycles'],
+  summary: "Set a manager's bid (seats wanted) on a candidate course (requirement #1)",
+  request: {
+    params: z.object({ id: z.coerce.number().int() }),
+    body: { content: json(SetBidInput) },
+  },
+  responses: { 204: { description: 'Bid saved' }, 403: problem('Bidding closed / not permitted') },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/courses/{id}/bids',
+  tags: ['cycles'],
+  summary: 'All managers’ bids on a candidate course (HR review, requirement #2)',
+  request: { params: z.object({ id: z.coerce.number().int() }) },
+  responses: { 200: { description: 'Bids', content: json(z.array(CourseBid)) } },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/courses/{id}/decision',
+  tags: ['cycles'],
+  summary: 'HR confirms or cancels a course by participant numbers; participants mailed (#6/#7/#8)',
+  request: {
+    params: z.object({ id: z.coerce.number().int() }),
+    body: { content: json(z.object({ decision: z.enum(['confirm', 'cancel']) })) },
+  },
+  responses: { 200: { description: 'New lifecycle state', content: json(z.object({ state: z.string() })) } },
+});
+
+// ---- Notification outbox ---------------------------------------------------------------------
+
+registry.registerPath({
+  method: 'get',
+  path: '/notifications',
+  tags: ['notifications'],
+  summary: 'The signed-in user’s notification inbox (outbox stand-in for Exchange mail)',
+  responses: {
+    200: { description: 'Messages', content: json(z.array(NotificationMessage)) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/notifications/dispatch',
+  tags: ['notifications'],
+  summary: 'Dispatch due notifications (simulates the scheduled Exchange send) — HR/admin/dev',
+  responses: {
+    200: { description: 'Count dispatched', content: json(z.object({ dispatched: z.number().int() })) },
+    403: problem('Not permitted for this role'),
+  },
+});
+
+// ---- Per-day attendance & justifications (requirement #9) ------------------------------------
+
+registry.registerPath({
+  method: 'get',
+  path: '/courses/{id}/attendance-grid',
+  tags: ['attendance'],
+  summary: 'The per-day attendance grid HR fills in at the end of each course day (requirement #9)',
+  request: { params: z.object({ id: z.coerce.number().int() }) },
+  responses: { 200: { description: 'Attendance grid', content: json(AttendanceGrid) } },
+});
+
+registry.registerPath({
+  method: 'put',
+  path: '/courses/{id}/attendance',
+  tags: ['attendance'],
+  summary: 'HR marks one person present/absent for one day; an absence opens a justification (#9)',
+  request: {
+    params: z.object({ id: z.coerce.number().int() }),
+    body: { content: json(MarkAttendanceInput) },
+  },
+  responses: { 204: { description: 'Recorded' }, 403: problem('Not permitted for this role') },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/justifications',
+  tags: ['attendance'],
+  summary: 'No-show justifications visible to the caller (HR: all; manager: team; employee: own)',
+  responses: {
+    200: { description: 'Justifications', content: json(z.array(AttendanceJustification)) },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/justifications/{id}/submit',
+  tags: ['attendance'],
+  summary: 'Submit a reason for a no-show (employee or their manager)',
+  request: {
+    params: z.object({ id: z.coerce.number().int() }),
+    body: { content: json(SubmitJustificationInput) },
+  },
+  responses: { 200: { description: 'Updated justification', content: json(AttendanceJustification) } },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/justifications/{id}/review',
+  tags: ['attendance'],
+  summary: 'HR accepts or rejects a submitted justification',
+  request: {
+    params: z.object({ id: z.coerce.number().int() }),
+    body: { content: json(ReviewJustificationInput) },
+  },
+  responses: { 200: { description: 'Reviewed justification', content: json(AttendanceJustification) } },
+});
+
 export function buildOpenApiDocument() {
   const generator = new OpenApiGeneratorV31(registry.definitions);
   return generator.generateDocument({
@@ -470,6 +661,7 @@ export function buildOpenApiDocument() {
       { name: 'attendance' },
       { name: 'notifications' },
       { name: 'reports' },
+      { name: 'cycles' },
     ],
   });
 }

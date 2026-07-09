@@ -34,6 +34,12 @@ export type ExternalLecturerId = z.infer<typeof ExternalLecturerId>;
 export const NotificationRuleId = z.number().int().positive().brand<'NotificationRuleId'>();
 export type NotificationRuleId = z.infer<typeof NotificationRuleId>;
 
+export const CycleId = z.number().int().positive().brand<'CycleId'>();
+export type CycleId = z.infer<typeof CycleId>;
+
+export const JustificationId = z.number().int().positive().brand<'JustificationId'>();
+export type JustificationId = z.infer<typeof JustificationId>;
+
 /** A calendar year, e.g. 2026. Used pervasively by the legacy per-year data model. */
 export const Year = z.number().int().gte(2000).lte(2100).brand<'Year'>();
 export type Year = z.infer<typeof Year>;

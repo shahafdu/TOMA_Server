@@ -459,4 +459,172 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       expect(privacy.completed).toBe(false); // Carol did not
     });
   });
+
+  // The quarterly workflow mutates shared state, so it runs last and in sequence.
+  describe('quarterly bidding → registration → lock → attendance lifecycle (S3)', () => {
+    it('#1 shows the seeded Q4 bidding board with the manager’s own bids', async () => {
+      const { agent } = await login('bob');
+      const res = await agent.get('/api/v1/cycles/board');
+      expect(res.status).toBe(200);
+      expect(res.body.cycle.status).toBe('bidding');
+      expect(res.body.cycle.quarter).toBe(4);
+      const k8s = res.body.courses.find((c: { courseId: number }) => c.courseId === 207);
+      expect(k8s.myBidSeats).toBe(2); // seeded bid
+      expect(res.body.courses.length).toBe(4); // 205,206,207,210 candidates
+    });
+
+    it('#1 lets a manager change a bid while bidding is open', async () => {
+      const { agent } = await login('bob');
+      expect((await agent.post('/api/v1/courses/207/bid').send({ seats: 4 })).status).toBe(204);
+      const board = await agent.get('/api/v1/cycles/board');
+      const k8s = board.body.courses.find((c: { courseId: number }) => c.courseId === 207);
+      expect(k8s.myBidSeats).toBe(4);
+    });
+
+    it('#1 forbids a plain employee from bidding', async () => {
+      const { agent } = await login('carol');
+      expect((await agent.post('/api/v1/courses/205/bid').send({ seats: 1 })).status).toBe(403);
+    });
+
+    it('#2 HR reviews bids and opens registration for the chosen courses', async () => {
+      const { agent } = await login('alice');
+      const bids = await agent.get('/api/v1/courses/207/bids');
+      expect(bids.body.some((b: { managerId: string; seats: number }) => b.managerId === '2')).toBe(
+        true,
+      );
+      const res = await agent.post('/api/v1/cycles/1/open-registration').send({
+        registrationClosesAt: '2026-12-31T17:00:00.000Z',
+        courseIds: [207, 210],
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('registration');
+
+      const board = await agent.get('/api/v1/cycles/board');
+      const state = (id: number) =>
+        board.body.courses.find((c: { courseId: number }) => c.courseId === id).lifecycleState;
+      expect(state(207)).toBe('open');
+      expect(state(210)).toBe('open');
+      expect(state(205)).toBe('rejected'); // not chosen
+    });
+
+    it('#2 mails managers that registration opened', async () => {
+      const { agent } = await login('bob');
+      const inbox = await agent.get('/api/v1/notifications');
+      expect(inbox.body.some((m: { event: string }) => m.event === 'registration_opened')).toBe(
+        true,
+      );
+    });
+
+    it('#5 waitlists a registration when the course is full', async () => {
+      const { agent } = await login('bob');
+      // 210 has capacity 1, already filled by Carol → Dave is waitlisted.
+      const res = await agent
+        .post('/api/v1/courses/210/registrations')
+        .send({ employeeId: '4', source: 'manager' });
+      expect(res.status).toBe(201);
+      expect(res.body.registration.status).toBe('waitlisted');
+    });
+
+    it('#5 promotes the waitlist when a seat frees up', async () => {
+      const bob = await login('bob');
+      // Cancel Carol's confirmed seat → Dave is promoted off the waitlist.
+      const cancel = await bob.agent.patch('/api/v1/courses/210/registrations/3').send({
+        action: 'cancel',
+      });
+      expect(cancel.status).toBe(200);
+      const dave = await login('dave');
+      const avail = await dave.agent.get('/api/v1/courses/210/availability');
+      expect(avail.body.myStatus).toBe('registered');
+    });
+
+    it('#4 locks registration — managers blocked, HR can still change', async () => {
+      const alice = await login('alice');
+      const lock = await alice.agent.post('/api/v1/cycles/1/lock');
+      expect(lock.status).toBe(201);
+      expect(lock.body.status).toBe('locked');
+
+      const bob = await login('bob');
+      const blocked = await bob.agent
+        .post('/api/v1/courses/207/registrations')
+        .send({ employeeId: '9', source: 'manager' });
+      expect(blocked.status).toBe(403); // locked for managers
+
+      // HR override still works (add someone after lock, requirement #4).
+      const hr = await alice.agent
+        .post('/api/v1/courses/207/registrations')
+        .send({ employeeId: '9', source: 'hr' });
+      expect(hr.status).toBe(201);
+      expect(hr.body.registration.status).toBe('registered');
+    });
+
+    it('#6/#7 HR confirms a course and participants are mailed with the dates', async () => {
+      const alice = await login('alice');
+      const res = await alice.agent.post('/api/v1/courses/207/decision').send({ decision: 'confirm' });
+      expect(res.status).toBe(201);
+      expect(res.body.state).toBe('confirmed');
+
+      const carol = await login('carol'); // Carol is registered on 207
+      const inbox = await carol.agent.get('/api/v1/notifications');
+      expect(
+        inbox.body.some(
+          (m: { event: string; courseId: number }) =>
+            m.event === 'registration_confirmed' && m.courseId === 207,
+        ),
+      ).toBe(true);
+    });
+
+    it('dispatches due notifications (the Exchange send stand-in)', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.post('/api/v1/notifications/dispatch');
+      expect(res.status).toBe(201);
+      expect(res.body.dispatched).toBeGreaterThan(0);
+    });
+
+    it('#9 HR fills per-day attendance; an absence opens a justification + mail', async () => {
+      const alice = await login('alice');
+      const grid = await alice.agent.get('/api/v1/courses/211/attendance-grid');
+      expect(grid.status).toBe(200);
+      expect(grid.body.sessions.length).toBe(1);
+      const start = grid.body.sessions[0].startsAt;
+
+      // Mark devuser (id 6, registered on 211, not seeded as attended) absent.
+      const mark = await alice.agent
+        .put('/api/v1/courses/211/attendance')
+        .send({ employeeId: '6', sessionStart: start, present: false });
+      expect(mark.status).toBe(204);
+
+      const list = await alice.agent.get('/api/v1/justifications');
+      const j = list.body.find(
+        (x: { courseId: number; employeeId: string }) => x.courseId === 211 && x.employeeId === '6',
+      );
+      expect(j).toBeDefined();
+      expect(j.status).toBe('requested');
+
+      // The employee submits a reason; HR accepts it.
+      const dev = await login('devuser');
+      const submit = await dev.agent
+        .post(`/api/v1/justifications/${j.id}/submit`)
+        .send({ reason: 'Was on sick leave that day.' });
+      expect(submit.status).toBe(201);
+      expect(submit.body.status).toBe('submitted');
+
+      const review = await alice.agent
+        .post(`/api/v1/justifications/${j.id}/review`)
+        .send({ decision: 'accept' });
+      expect(review.status).toBe(201);
+      expect(review.body.status).toBe('accepted');
+    });
+
+    it('#9 marking present records attendance in the grid', async () => {
+      const alice = await login('alice');
+      const grid = await alice.agent.get('/api/v1/courses/211/attendance-grid');
+      const start = grid.body.sessions[0].startsAt;
+      await alice.agent
+        .put('/api/v1/courses/211/attendance')
+        .send({ employeeId: '6', sessionStart: start, present: true });
+      const after = await alice.agent.get('/api/v1/courses/211/attendance-grid');
+      const row = after.body.rows.find((r: { employeeId: string }) => r.employeeId === '6');
+      expect(row.present[0]).toBe(true);
+    });
+  });
 });

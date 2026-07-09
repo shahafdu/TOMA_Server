@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   Course,
   CourseAvailability,
@@ -13,17 +8,22 @@ import type {
   RegistrationSource,
   RegistrationStatus,
   RosterEntry,
+  TrainingCycle,
 } from '@toma/shared';
 import {
   CourseAvailability as CourseAvailabilitySchema,
   CourseRoster as CourseRosterSchema,
 } from '@toma/shared';
 import { CoursesRepository } from '../courses/courses.repository.js';
+import { CyclesRepository } from '../cycles/cycles.repository.js';
 import { EmployeesRepository } from '../employees/employees.repository.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { RegistrationsRepository } from './registrations.repository.js';
 
 /** Roles that register across the whole org (HR view); everyone else registers their own team. */
 const ORG_ROLES = ['hr', 'admin', 'developer'];
+/** States where registration is closed to everyone but HR. */
+const LOCKED_STATES = new Set(['locked', 'confirmed', 'rejected']);
 
 export interface Caller {
   userId: string;
@@ -36,9 +36,14 @@ export class RegistrationsService {
     private readonly repo: RegistrationsRepository,
     private readonly courses: CoursesRepository,
     private readonly employees: EmployeesRepository,
+    private readonly cycles: CyclesRepository,
+    private readonly notifications: NotificationsService,
   ) {}
 
-  /** Register (or request) an employee, enforcing self-service policy, constraints and seats. */
+  /**
+   * Register (or request/waitlist) an employee, enforcing self-service policy, constraints, the
+   * registration lock, seat limits and the waitlist (requirements #3/#4/#5/#8/#9).
+   */
   async register(
     courseId: number,
     employeeId: string,
@@ -47,10 +52,27 @@ export class RegistrationsService {
   ): Promise<RegistrationResult> {
     const course = await this.assertCourse(courseId);
     const employee = await this.assertEmployee(employeeId);
+    const isHr = ORG_ROLES.includes(caller.role);
 
-    // A person may only self-register themselves.
     if (source === 'self' && employeeId !== caller.userId) {
       throw new ForbiddenException({ error: 'You can only self-register yourself' });
+    }
+    // A manager may only act on their own org subtree.
+    if (caller.role === 'manager' && !(await this.inSubtree(caller.userId, employeeId))) {
+      throw new ForbiddenException({ error: 'That person is not in your team' });
+    }
+
+    // Team / personnel-type constraints (requirements #8/#9) — a property of the person, so
+    // checked before the timing gate: an ineligible person gets the real reason either way.
+    const reason = constraintReason(course, employee);
+    if (reason) throw new ForbiddenException({ error: reason });
+
+    // Registration lock (#3/#4): once locked / deadline passed, only HR may change registrations.
+    const cycle = await this.cycleOf(course);
+    if (!isHr && !canNonHrChange(course, cycle)) {
+      throw new ForbiddenException({
+        error: 'Registration is locked for this course — contact HR to make changes',
+      });
     }
 
     // Self-registration is gated by the course policy (requirement #7).
@@ -62,22 +84,17 @@ export class RegistrationsService {
       status = course.selfRegistration === 'approval_required' ? 'pending_approval' : 'registered';
     }
 
-    // Team / personnel-type constraints (requirements #8/#9).
-    const reason = constraintReason(course, employee);
-    if (reason) throw new ForbiddenException({ error: reason });
-
-    // Seat limits (requirement #8). Pending requests don't consume a confirmed seat.
-    if (status === 'registered') {
+    // Seats & per-manager cap (#8). When over, a non-HR registration is waitlisted (#5) rather
+    // than rejected; HR may overfill to cover a drop-out (#4).
+    if (status === 'registered' && !isHr) {
       const availability = await this.availability(course);
-      if (!availability.unlimited && (availability.seatsLeft ?? 0) <= 0) {
-        throw new ConflictException({ error: 'Course is full' });
-      }
+      const seatsFull = !availability.unlimited && (availability.seatsLeft ?? 0) <= 0;
+      let managerOver = false;
       if (source === 'manager' && course.perManagerLimit != null) {
         const used = await this.managerSeatsUsed(courseId, caller.userId);
-        if (used >= course.perManagerLimit) {
-          throw new ForbiddenException({ error: 'Your seat allocation for this course is full' });
-        }
+        managerOver = used >= course.perManagerLimit;
       }
+      if (seatsFull || managerOver) status = 'waitlisted';
     }
 
     const requestedBy = source === 'self' ? employeeId : caller.userId;
@@ -89,21 +106,28 @@ export class RegistrationsService {
     return Promise.all(employeeIds.map((id) => this.repo.precheck(courseId, id)));
   }
 
-  /** Seat availability for a course (null seat fields ⇒ unlimited / online). */
+  /** Seat availability for a course (null seat fields ⇒ unlimited / online) plus lock state. */
   async availability(course: Course, callerId?: string): Promise<CourseAvailability> {
-    const { registered, pending } = await this.repo.statusCounts(course.id);
+    const [{ registered, pending, waitlisted }, cycle] = await Promise.all([
+      this.repo.statusCounts(course.id),
+      this.cycleOf(course),
+    ]);
     const unlimited = course.capacity == null;
     const seatsLeft = unlimited ? null : Math.max(0, course.capacity! - registered);
     const myStatus = callerId ? await this.repo.statusOf(course.id, callerId) : null;
+    const locked = LOCKED_STATES.has(course.lifecycleState) || deadlinePassed(cycle);
     return CourseAvailabilitySchema.parse({
       courseId: course.id,
       capacity: course.capacity,
       registered,
       pending,
+      waitlisted,
       seatsLeft,
       unlimited,
       perManagerLimit: course.perManagerLimit,
       myStatus,
+      registrationClosesAt: cycle?.registrationClosesAt ?? null,
+      locked,
     });
   }
 
@@ -143,18 +167,26 @@ export class RegistrationsService {
       let eligible = true;
       let reason: string | null = null;
       const constraint = constraintReason(course, employee);
-      if (status === 'registered' || status === 'pending_approval') {
+      if (status === 'registered' || status === 'pending_approval' || status === 'waitlisted') {
         eligible = false;
-        reason = status === 'registered' ? 'Already registered' : 'Awaiting approval';
+        reason =
+          status === 'registered'
+            ? 'Already registered'
+            : status === 'waitlisted'
+              ? 'On the waitlist'
+              : 'Awaiting approval';
+      } else if (availability.locked) {
+        eligible = false;
+        reason = 'Registration is locked';
       } else if (constraint) {
         eligible = false;
         reason = constraint;
       } else if (seatsFull) {
-        eligible = false;
-        reason = 'Course is full';
+        eligible = true; // still registrable — will be waitlisted
+        reason = 'Course full — will be waitlisted';
       } else if (managerFull) {
-        eligible = false;
-        reason = 'Your seat allocation is full';
+        eligible = true;
+        reason = 'Over your allocation — will be waitlisted';
       }
       return { employee, status, eligible, reason };
     });
@@ -162,7 +194,10 @@ export class RegistrationsService {
     return CourseRosterSchema.parse({ availability, managerSeatsUsed, managerSeatsLeft, entries });
   }
 
-  /** Approve / decline / cancel a pending or active registration (requirement #7). */
+  /**
+   * Approve / decline / cancel a registration (requirement #7). Cancelling a confirmed seat frees
+   * it and promotes the earliest waitlisted person (#5). Non-HR are blocked once locked (#4).
+   */
   async manage(
     courseId: number,
     employeeId: string,
@@ -173,21 +208,43 @@ export class RegistrationsService {
     const current = await this.repo.statusOf(courseId, employeeId);
     if (!current) throw new NotFoundException({ error: 'No such registration' });
 
-    if (action === 'approve') {
-      const availability = await this.availability(course);
-      if (!availability.unlimited && (availability.seatsLeft ?? 0) <= 0) {
-        throw new ConflictException({ error: 'Course is full' });
-      }
+    const isHr = ORG_ROLES.includes(caller.role);
+    if (caller.role === 'manager' && !(await this.inSubtree(caller.userId, employeeId))) {
+      throw new ForbiddenException({ error: 'That person is not in your team' });
     }
+    const cycle = await this.cycleOf(course);
+    if (!isHr && !canNonHrChange(course, cycle)) {
+      throw new ForbiddenException({
+        error: 'Registration is locked for this course — contact HR to make changes',
+      });
+    }
+
     const next: RegistrationStatus =
       action === 'approve' ? 'registered' : action === 'decline' ? 'declined' : 'cancelled';
-    await this.repo.updateStatus(
-      courseId,
-      employeeId,
-      next,
-      action === 'approve' ? caller.userId : null,
-    );
+    await this.repo.updateStatus(courseId, employeeId, next, action === 'approve' ? caller.userId : null);
+
+    // Freeing a confirmed seat promotes the next waitlisted person (#5).
+    if ((action === 'cancel' || action === 'decline') && current === 'registered') {
+      await this.promoteWaitlist(course);
+    }
     return { status: next };
+  }
+
+  /** If a seat is free, promote the earliest waitlisted person and notify them (#5). */
+  private async promoteWaitlist(course: Course): Promise<void> {
+    if (course.capacity == null) return;
+    const { registered } = await this.repo.statusCounts(course.id);
+    if (registered >= course.capacity) return;
+    const next = await this.repo.earliestWaitlisted(course.id);
+    if (!next) return;
+    await this.repo.updateStatus(course.id, next, 'registered', null);
+    await this.notifications.queue({
+      event: 'waitlist_promoted',
+      recipientId: next,
+      subject: `A seat opened up: ${course.title}`,
+      body: `A seat has opened on "${course.title}" and you have been moved off the waitlist — you are now registered.`,
+      courseId: course.id,
+    });
   }
 
   private async managerSeatsUsed(courseId: number, managerId: string): Promise<number> {
@@ -196,6 +253,15 @@ export class RegistrationsService {
       this.repo.registrationsFor(courseId),
     ]);
     return subtree.filter((c) => statusMap.get(c.id) === 'registered').length;
+  }
+
+  private async inSubtree(managerId: string, employeeId: string): Promise<boolean> {
+    const subtree = await this.employees.subtreeSummaries(managerId);
+    return subtree.some((e) => e.id === employeeId);
+  }
+
+  private cycleOf(course: Course): Promise<TrainingCycle | null> {
+    return course.cycleId != null ? this.cycles.findById(course.cycleId) : Promise.resolve(null);
   }
 
   private async assertCourse(courseId: number): Promise<Course> {
@@ -218,6 +284,20 @@ export class RegistrationsService {
       status: employee.status,
     };
   }
+}
+
+function deadlinePassed(cycle: TrainingCycle | null): boolean {
+  return (
+    cycle?.registrationClosesAt != null &&
+    new Date(cycle.registrationClosesAt).getTime() < Date.now()
+  );
+}
+
+/** Whether a non-HR user may still change registrations on this course. */
+function canNonHrChange(course: Course, cycle: TrainingCycle | null): boolean {
+  if (course.cycleId == null) return true; // ad-hoc catalog course, no lifecycle gate
+  if (course.lifecycleState !== 'open') return false; // not open (candidate/bidding/locked/…)
+  return !deadlinePassed(cycle);
 }
 
 /** The first failing registration constraint for an employee, or null when eligible (#8/#9). */

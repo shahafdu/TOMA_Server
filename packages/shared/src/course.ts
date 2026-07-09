@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { CourseId, CourseSeriesId, CourseSessionId, EmployeeId, Year } from './ids.js';
+import { CourseId, CourseSeriesId, CourseSessionId, CycleId, EmployeeId, Year } from './ids.js';
 import { IsoDateTime } from './common.js';
 import {
+  CourseLifecycleState,
   CourseStatus,
   CourseType,
   DeliveryType,
@@ -79,6 +80,10 @@ export const Course = z
     restrictedTeams: z.array(z.string()).default([]),
     selfRegistration: SelfRegistrationPolicy,
     ownerId: EmployeeId.nullable(),
+    /** The quarterly cycle this course belongs to, if any (bidding/registration lifecycle). */
+    cycleId: CycleId.nullable().default(null),
+    /** State within its cycle's workflow (`catalog` for ad-hoc courses). */
+    lifecycleState: CourseLifecycleState.default('catalog'),
   })
   .refine(
     (c) => c.deliveryType === 'online' || (c.platform === null && c.platformUrl === null),

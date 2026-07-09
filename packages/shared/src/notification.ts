@@ -10,7 +10,7 @@ export const NotificationScope = z.discriminatedUnion('kind', [
 ]);
 export type NotificationScope = z.infer<typeof NotificationScope>;
 
-/** Domain events that can trigger notifications (plan §2.7). */
+/** Domain events that can trigger notifications (plan §2.7 + bidding/registration lifecycle). */
 export const NotificationEvent = z.enum([
   'registration_created',
   'self_registration_requested',
@@ -21,8 +21,36 @@ export const NotificationEvent = z.enum([
   'session_reminder',
   'attendance_missing',
   'feedback_request',
+  // Quarterly bidding / registration lifecycle epic
+  'bidding_opened',
+  'bidding_reminder',
+  'registration_opened',
+  'registration_reminder',
+  'registration_locked',
+  'registration_confirmed',
+  'course_confirmed',
+  'course_cancelled',
+  'course_upcoming',
+  'justification_requested',
+  'justification_reviewed',
 ]);
 export type NotificationEvent = z.infer<typeof NotificationEvent>;
+
+/** A queued/sent message in the notification outbox (the in-app stand-in for Exchange mail). */
+export const NotificationMessage = z.object({
+  id: z.number().int(),
+  event: NotificationEvent,
+  recipientId: z.string(),
+  subject: z.string(),
+  body: z.string(),
+  courseId: CourseId.nullable(),
+  cycleId: z.number().int().nullable(),
+  scheduledFor: z.string(),
+  sentAt: z.string().nullable(),
+  readAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type NotificationMessage = z.infer<typeof NotificationMessage>;
 
 /**
  * Recipient selectors (plan §2.7). Resolved and de-duplicated at send time.

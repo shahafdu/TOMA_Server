@@ -45,6 +45,10 @@ interface CountRow extends RowDataPacket {
   c: number;
 }
 
+interface ManagerIdRow extends RowDataPacket {
+  managerSircID: number | null;
+}
+
 const EMPLOYEE_SELECT = `
   SELECT u.sircID, u.userName, u.firstName, u.lastName, u.email, u.managerSircID, u.teamName,
          u.workTitle, u.\`rank\`, u.category, u.status, u.startDate, u.startDate2, u.endDate,
@@ -113,6 +117,24 @@ export class EmployeesRepository {
       `${EMPLOYEE_SELECT_WHERE} u.status = 'working' ORDER BY u.firstName, u.lastName`,
     );
     return rows.map(mapSummary);
+  }
+
+  /** sircIDs of everyone who manages at least one working person (used to notify all managers). */
+  async managerIds(): Promise<string[]> {
+    const rows = await this.db.query<ManagerIdRow>(
+      `SELECT DISTINCT managerSircID FROM emma.users
+       WHERE managerSircID IS NOT NULL AND status = 'working'`,
+    );
+    return rows.map((r) => String(r.managerSircID));
+  }
+
+  /** The direct manager's sircID for an employee (for targeted notifications). */
+  async managerOf(employeeId: string): Promise<string | null> {
+    const rows = await this.db.query<ManagerIdRow>(
+      'SELECT managerSircID FROM emma.users WHERE sircID = ?',
+      [employeeId],
+    );
+    return rows[0]?.managerSircID != null ? String(rows[0].managerSircID) : null;
   }
 
   async list(filter: { query?: string; managerId?: string }): Promise<Employee[]> {

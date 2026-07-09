@@ -33,6 +33,8 @@ interface CourseRow extends RowDataPacket {
   SelfRegistration: string;
   ExcludeSubcontractors: number;
   ExcludeStudents: number;
+  CycleID: number | null;
+  LifecycleState: string;
   Year: number;
   isTentative: number;
 }
@@ -52,7 +54,7 @@ const COURSE_SELECT = `
   SELECT CourseID, CourseName, Syllabus, Notes, TextForMail, TotalHours, Price, Location,
          IsIn, IsMandatory, IsConference, CourseType, Discipline, DeliveryType, Platform,
          PlatformUrl, Capacity, PerManagerLimit, SelfRegistration, ExcludeSubcontractors,
-         ExcludeStudents, Year, isTentative
+         ExcludeStudents, CycleID, LifecycleState, Year, isTentative
   FROM coma.courses`;
 
 @Injectable()
@@ -228,8 +230,20 @@ function mapCourse(
     restrictedTeams,
     selfRegistration: parseSelfReg(row.SelfRegistration),
     ownerId: null,
+    cycleId: row.CycleID,
+    lifecycleState: LIFECYCLE_STATES.has(row.LifecycleState) ? row.LifecycleState : 'catalog',
   });
 }
+
+const LIFECYCLE_STATES = new Set([
+  'catalog',
+  'candidate',
+  'bidding',
+  'open',
+  'locked',
+  'confirmed',
+  'rejected',
+]);
 
 function parseSelfReg(value: string): 'none' | 'open' | 'approval_required' {
   return value === 'open' || value === 'approval_required' ? value : 'none';

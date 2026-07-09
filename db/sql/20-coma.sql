@@ -26,12 +26,18 @@ CREATE TABLE courses (
   SelfRegistration             VARCHAR(24)   NOT NULL DEFAULT 'none', -- 'none'|'open'|'approval_required'
   ExcludeSubcontractors        TINYINT(1)    NOT NULL DEFAULT 0,
   ExcludeStudents              TINYINT(1)    NOT NULL DEFAULT 0,
+  -- NEW (additive, bidding/registration lifecycle epic): which quarterly cycle a candidate
+  -- course belongs to, and its state within that cycle's workflow.
+  CycleID                      INT           NULL,
+  LifecycleState               VARCHAR(16)   NOT NULL DEFAULT 'catalog',
+  -- catalog|candidate|bidding|open|locked|confirmed|rejected
   Year                         INT           NOT NULL,
   Creator                      VARCHAR(128)  NULL,
   isTentative                  TINYINT(1)    NOT NULL DEFAULT 0,
   participantsAmountEstimated  INT           NOT NULL DEFAULT 0,
   INDEX idx_courses_year (Year),
-  INDEX idx_courses_name (CourseName)
+  INDEX idx_courses_name (CourseName),
+  INDEX idx_courses_cycle (CycleID)
 );
 
 CREATE TABLE coursetouser (
@@ -97,4 +103,62 @@ CREATE TABLE hours (
 CREATE TABLE user_role (
   sircID INT         NOT NULL PRIMARY KEY,
   role   VARCHAR(16) NOT NULL
+);
+
+-- ================= Quarterly bidding / registration lifecycle (new epic) =====================
+
+-- One quarterly training cycle. Drives the phase every candidate course moves through.
+CREATE TABLE training_cycle (
+  CycleID              INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  Year                 INT         NOT NULL,
+  Quarter              TINYINT     NOT NULL,          -- 1..4
+  Status               VARCHAR(16) NOT NULL DEFAULT 'draft',
+  -- draft|bidding|registration|locked|completed
+  BiddingClosesAt      DATETIME    NULL,              -- shown on the bidding form
+  RegistrationClosesAt DATETIME    NULL,              -- shown on the registration form
+  CreatedAt            DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_cycle (Year, Quarter)
+);
+
+-- A manager's bid: how many of their people they want on a candidate course (#1).
+CREATE TABLE course_bid (
+  CourseID      INT      NOT NULL,
+  ManagerSircID INT      NOT NULL,
+  Seats         INT      NOT NULL DEFAULT 0,
+  UpdatedAt     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (CourseID, ManagerSircID),
+  INDEX idx_bid_course (CourseID)
+);
+
+-- No-show justification workflow (#9). A row is created when HR marks a registered person
+-- absent; the person/manager submit a reason; HR accepts or rejects it.
+CREATE TABLE attendance_justification (
+  JustificationID INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  CourseID        INT         NOT NULL,
+  ID              INT         NOT NULL,               -- employee sircID
+  SessionDate     DATE        NULL,                   -- the missed day (NULL = whole course)
+  Reason          TEXT        NULL,
+  Status          VARCHAR(16) NOT NULL DEFAULT 'requested', -- requested|submitted|accepted|rejected
+  CreatedAt       DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UpdatedAt       DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_just (CourseID, ID, SessionDate),
+  INDEX idx_just_course (CourseID)
+);
+
+-- The mail outbox. Every "automatic mail" is queued here (subject/body/recipient/schedule).
+-- A dispatcher marks rows SentAt; on-prem Exchange wiring is the deferred production step.
+CREATE TABLE notification_outbox (
+  NotificationID  INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  Event           VARCHAR(40)  NOT NULL,
+  RecipientSircID INT          NOT NULL,
+  Subject         VARCHAR(255) NOT NULL,
+  Body            TEXT         NOT NULL,
+  CourseID        INT          NULL,
+  CycleID         INT          NULL,
+  ScheduledFor    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  SentAt          DATETIME     NULL,
+  ReadAt          DATETIME     NULL,
+  CreatedAt       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_outbox_recipient (RecipientSircID),
+  INDEX idx_outbox_due (SentAt, ScheduledFor)
 );

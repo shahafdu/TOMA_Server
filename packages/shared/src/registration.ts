@@ -44,11 +44,16 @@ export const CourseAvailability = z.object({
   capacity: z.number().int().nullable(),
   registered: z.number().int().nonnegative(),
   pending: z.number().int().nonnegative(),
+  waitlisted: z.number().int().nonnegative().default(0),
   seatsLeft: z.number().int().nullable(),
   unlimited: z.boolean(),
   perManagerLimit: z.number().int().nullable(),
   /** The signed-in user's own registration status on this course (calendar hover, requirement #5). */
   myStatus: RegistrationStatus.nullable().default(null),
+  /** Registration lock deadline from the course's quarterly cycle, if any (requirement #3). */
+  registrationClosesAt: IsoDateTime.nullable().default(null),
+  /** True once registration is locked — only HR can change registrations (requirement #4). */
+  locked: z.boolean().default(false),
 });
 export type CourseAvailability = z.infer<typeof CourseAvailability>;
 

@@ -65,7 +65,8 @@ UPDATE courses SET Capacity=25 WHERE CourseID=203;            -- JavaScript
 UPDATE courses SET Capacity=5, ExcludeSubcontractors=1 WHERE CourseID=205;  -- Cloud Conf
 UPDATE courses SET SelfRegistration='approval_required' WHERE CourseID=209;  -- Effective Communication
 UPDATE courses SET Capacity=12 WHERE CourseID=207;           -- Kubernetes (R&D-only, below)
-UPDATE courses SET SelfRegistration='open' WHERE CourseID=210;  -- Design Systems (free self-reg)
+-- Design Systems: free self-reg, capped small so the waitlist path is exercisable.
+UPDATE courses SET SelfRegistration='open', Capacity=2 WHERE CourseID=210;
 
 -- Kubernetes is limited to the R&D team/group (team names compared without the legacy parens).
 INSERT INTO course_team_restriction (CourseID, teamName) VALUES (207, 'R&D');
@@ -139,3 +140,24 @@ INSERT INTO users (ID, EducationHours2024, EducationHours2025, EducationHours202
 
 INSERT INTO budget (yearlyBudget2024, yearlyBudget2025, yearlyBudget2026) VALUES (90000, 100000, 120000);
 INSERT INTO hours (yearlyTargetHours2024, yearlyTargetHours2025, yearlyTargetHours2026) VALUES (40, 40, 40);
+
+-- ================= Quarterly cycle seed (bidding/registration lifecycle) ======================
+
+-- A Q4 2026 cycle currently open for bidding (deadline in the near future).
+INSERT INTO training_cycle (CycleID, Year, Quarter, Status, BiddingClosesAt)
+  VALUES (1, 2026, 4, 'bidding', '2026-07-31 17:00:00');
+
+-- Candidate courses HR put up for the Q4 cycle (their Q4 sessions already exist above).
+UPDATE courses SET CycleID = 1, LifecycleState = 'bidding'
+  WHERE CourseID IN (205, 206, 207, 210);
+
+-- Bob (manager) has already bid on two of them; he can still change these until the deadline.
+INSERT INTO course_bid (CourseID, ManagerSircID, Seats) VALUES
+  (207, 2, 2),
+  (210, 2, 1);
+
+-- The "bidding opened" mail that reached Bob when HR launched the cycle.
+INSERT INTO notification_outbox (Event, RecipientSircID, Subject, Body, CycleID, SentAt)
+  VALUES ('bidding_opened', 2, 'Bidding open for Q4 2026 training',
+          'HR has opened bidding for the Q4 2026 training cycle. Please submit how many of your team you want on each candidate course before 31 Jul 2026.',
+          1, '2026-07-05 09:00:00');

@@ -21,6 +21,30 @@ export const SetAttendanceInput = z.object({
 });
 export type SetAttendanceInput = z.infer<typeof SetAttendanceInput>;
 
+/** HR marks one registered person present/absent for one day of a course (requirement #9). */
+export const MarkAttendanceInput = z.object({
+  employeeId: EmployeeId,
+  sessionStart: IsoDateTime,
+  present: z.boolean(),
+});
+export type MarkAttendanceInput = z.infer<typeof MarkAttendanceInput>;
+
+/** The per-day attendance grid HR fills in at the end of each course day (requirement #9). */
+export const AttendanceGrid = z.object({
+  courseId: z.number().int(),
+  courseTitle: z.string(),
+  sessions: z.array(z.object({ startsAt: IsoDateTime, endsAt: IsoDateTime })),
+  rows: z.array(
+    z.object({
+      employeeId: EmployeeId,
+      employeeName: z.string(),
+      /** Presence per session, aligned to `sessions` by index. */
+      present: z.array(z.boolean()),
+    }),
+  ),
+});
+export type AttendanceGrid = z.infer<typeof AttendanceGrid>;
+
 /** Per-employee education-hours rollup for a year (normalized `education_hours`, plan §4.9). */
 export const EducationHours = z.object({
   employeeId: EmployeeId,
