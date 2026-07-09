@@ -4,7 +4,6 @@ import {
   ComplianceReport as ComplianceReportSchema,
   type MyTraining,
   MyTraining as MyTrainingSchema,
-  type Role,
 } from '@toma/shared';
 import { normalizeCourseName } from '../util/course-name.js';
 import { ReportsRepository } from './reports.repository.js';
@@ -13,11 +12,14 @@ import { ReportsRepository } from './reports.repository.js';
 export class ReportsService {
   constructor(private readonly repo: ReportsRepository) {}
 
-  /** Mandatory-training compliance across the caller's scope (team for managers, org otherwise). */
-  async compliance(role: Role, userId: string, year: number): Promise<ComplianceReport> {
-    const scope: ComplianceReport['scope'] = role === 'manager' ? 'team' : 'organization';
+  /** Mandatory-training compliance for a scope: `team` = the caller's full org subtree; `organization` = all. */
+  async compliance(
+    scope: ComplianceReport['scope'],
+    userId: string,
+    year: number,
+  ): Promise<ComplianceReport> {
     const eligible =
-      scope === 'team' ? await this.repo.directReportIds(userId) : await this.repo.allWorkingIds();
+      scope === 'team' ? await this.repo.subtreeIds(userId) : await this.repo.allWorkingIds();
     const total = eligible.length;
 
     const mandatory = await this.repo.mandatoryCourses(year);

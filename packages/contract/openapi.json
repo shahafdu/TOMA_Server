@@ -86,13 +86,17 @@
               "manager",
               "employee"
             ]
+          },
+          "hasTeam": {
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "fullName",
           "email",
-          "role"
+          "role",
+          "hasTeam"
         ]
       },
       "Employee": {
@@ -4287,8 +4291,20 @@
         "tags": [
           "reports"
         ],
-        "summary": "Mandatory-training compliance for the caller scope (team for managers, org for HR)",
+        "summary": "Mandatory-training compliance. scope=team (full org subtree) or organization (HR/admin)",
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "team",
+                "organization"
+              ]
+            },
+            "required": false,
+            "name": "scope",
+            "in": "query"
+          },
           {
             "schema": {
               "type": [

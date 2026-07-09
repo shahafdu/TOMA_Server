@@ -22,7 +22,10 @@ export interface Session {
   fullName: string;
   email: string | null;
   role: Role;
+  hasTeam: boolean;
 }
+
+export type ComplianceScope = 'team' | 'organization';
 
 export interface Page<T> {
   items: T[];
@@ -90,6 +93,6 @@ export const api = {
     }),
 
   myTraining: (year: number) => request<MyTraining>('GET', `/me/training?year=${year}`),
-  compliance: (year: number) =>
-    request<ComplianceReport>('GET', `/reports/compliance?year=${year}`),
+  compliance: (scope: ComplianceScope, year: number) =>
+    request<ComplianceReport>('GET', `/reports/compliance?scope=${scope}&year=${year}`),
 };

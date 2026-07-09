@@ -44,11 +44,14 @@ export class AuthController {
     );
     req.session.userId = identity.userId;
     req.session.role = identity.role;
+    // Same shape as /auth/me (incl. hasTeam) so the client caches a complete session.
+    const hasTeam = await this.employees.hasReports(identity.userId);
     return {
       id: identity.userId,
       fullName: identity.fullName,
       email: identity.email,
       role: identity.role,
+      hasTeam,
     };
   }
 
@@ -64,12 +67,16 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthenticatedGuard)
   async me(@CurrentUser() user: CurrentUserInfo) {
-    const employee = await this.employees.findById(user.userId);
+    const [employee, hasTeam] = await Promise.all([
+      this.employees.findById(user.userId),
+      this.employees.hasReports(user.userId),
+    ]);
     return {
       id: user.userId,
       fullName: employee?.fullName ?? '',
       email: employee?.email ?? null,
       role: user.role,
+      hasTeam,
     };
   }
 }

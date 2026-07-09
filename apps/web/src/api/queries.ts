@@ -67,10 +67,14 @@ export function useMyTraining(year: number = CURRENT_YEAR) {
   return useQuery({ queryKey: ['me', 'training', year], queryFn: () => api.myTraining(year) });
 }
 
-export function useCompliance(year: number = CURRENT_YEAR, enabled = true) {
+export function useCompliance(
+  scope: 'team' | 'organization',
+  year: number = CURRENT_YEAR,
+  enabled = true,
+) {
   return useQuery({
-    queryKey: ['reports', 'compliance', year],
-    queryFn: () => api.compliance(year),
+    queryKey: ['reports', 'compliance', scope, year],
+    queryFn: () => api.compliance(scope, year),
     enabled,
   });
 }

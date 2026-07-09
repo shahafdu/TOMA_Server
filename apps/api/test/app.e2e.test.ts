@@ -198,17 +198,28 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       expect(res.body.overallRate).toBeLessThanOrEqual(1);
     });
 
-    it('scopes to the team for a manager', async () => {
+    it('scopes to the full subtree for a manager (everyone below, not just direct reports)', async () => {
       const { agent } = await login('bob');
-      const res = await agent.get('/api/v1/reports/compliance?year=2026');
+      const res = await agent.get('/api/v1/reports/compliance?scope=team&year=2026');
       expect(res.status).toBe(200);
       expect(res.body.scope).toBe('team');
       expect(res.body.totalPeople).toBe(2); // Carol + Dave (Erin left)
     });
 
-    it('forbids an employee', async () => {
+    it('forbids an employee from the organization scope', async () => {
       const { agent } = await login('carol');
-      expect((await agent.get('/api/v1/reports/compliance')).status).toBe(403);
+      expect((await agent.get('/api/v1/reports/compliance?scope=organization')).status).toBe(403);
+    });
+
+    it('reports hasTeam on login and /auth/me (bob manages, carol does not)', async () => {
+      const bob = await login('bob');
+      expect(bob.res.body.hasTeam).toBe(true); // login response carries it too
+      expect((await bob.agent.get('/api/v1/auth/me')).body.hasTeam).toBe(true);
+      const carol = await login('carol');
+      expect(carol.res.body.hasTeam).toBe(false);
+      // Alice is HR and also manages Bob's org → she has a team
+      const alice = await login('alice');
+      expect(alice.res.body.hasTeam).toBe(true);
     });
   });
 

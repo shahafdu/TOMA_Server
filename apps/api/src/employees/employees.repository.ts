@@ -39,6 +39,10 @@ interface HistoryRow extends RowDataPacket {
   attended: number;
 }
 
+interface CountRow extends RowDataPacket {
+  c: number;
+}
+
 const EMPLOYEE_SELECT = `
   SELECT u.sircID, u.userName, u.firstName, u.lastName, u.email, u.managerSircID, u.teamName,
          u.workTitle, u.\`rank\`, u.category, u.status, u.startDate, u.startDate2, u.endDate,
@@ -71,6 +75,15 @@ export class EmployeesRepository {
   async findById(id: string): Promise<Employee | null> {
     const rows = await this.db.query<EmployeeRow>(`${EMPLOYEE_SELECT} WHERE u.sircID = ?`, [id]);
     return rows[0] ? mapEmployee(rows[0]) : null;
+  }
+
+  /** Whether this person manages anyone (has at least one working direct report). */
+  async hasReports(id: string): Promise<boolean> {
+    const rows = await this.db.query<CountRow>(
+      "SELECT COUNT(*) AS c FROM emma.users WHERE managerSircID = ? AND status = 'working'",
+      [id],
+    );
+    return Number(rows[0]?.c ?? 0) > 0;
   }
 
   async list(filter: { query?: string; managerId?: string }): Promise<Employee[]> {

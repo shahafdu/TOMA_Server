@@ -31,9 +31,17 @@ export class ReportsRepository {
     return rows.map((r) => r.sircID);
   }
 
-  async directReportIds(managerId: string): Promise<number[]> {
+  /** Every working employee anywhere below `managerId` in the org tree (full subtree, recursive). */
+  async subtreeIds(managerId: string): Promise<number[]> {
     const rows = await this.db.query<IdRow>(
-      "SELECT sircID FROM emma.users WHERE managerSircID = ? AND status = 'working'",
+      `WITH RECURSIVE sub AS (
+         SELECT sircID FROM emma.users WHERE managerSircID = ? AND status = 'working'
+         UNION
+         SELECT u.sircID FROM emma.users u
+           INNER JOIN sub s ON u.managerSircID = s.sircID
+         WHERE u.status = 'working'
+       )
+       SELECT sircID FROM sub`,
       [managerId],
     );
     return rows.map((r) => r.sircID);

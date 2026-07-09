@@ -57,6 +57,8 @@ const AuthMe = registry.register(
     fullName: z.string(),
     email: z.string().email().nullable(),
     role: Role,
+    /** Whether the user manages anyone — drives the "My team" dashboard tab. */
+    hasTeam: z.boolean(),
   }),
 );
 
@@ -360,8 +362,14 @@ registry.registerPath({
   method: 'get',
   path: '/reports/compliance',
   tags: ['reports'],
-  summary: 'Mandatory-training compliance for the caller scope (team for managers, org for HR)',
-  request: { query: z.object({ year: z.coerce.number().int().optional() }) },
+  summary:
+    'Mandatory-training compliance. scope=team (full org subtree) or organization (HR/admin)',
+  request: {
+    query: z.object({
+      scope: z.enum(['team', 'organization']).optional(),
+      year: z.coerce.number().int().optional(),
+    }),
+  },
   responses: {
     200: { description: 'Compliance report', content: json(ComplianceReport) },
     403: problem('Not permitted for this role'),
