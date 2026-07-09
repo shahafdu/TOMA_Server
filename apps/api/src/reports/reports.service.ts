@@ -1,0 +1,118 @@
+import { Injectable } from '@nestjs/common';
+import {
+  type AttendanceReport,
+  AttendanceReport as AttendanceReportSchema,
+  type BudgetReport,
+  BudgetReport as BudgetReportSchema,
+  type ComplianceReport,
+  ComplianceReport as ComplianceReportSchema,
+  type MyTraining,
+  MyTraining as MyTrainingSchema,
+} from '@toma/shared';
+import { normalizeCourseName } from '../util/course-name.js';
+import { ReportsRepository } from './reports.repository.js';
+
+@Injectable()
+export class ReportsService {
+  constructor(private readonly repo: ReportsRepository) {}
+
+  /** Mandatory-training compliance for a scope: `team` = the caller's full org subtree; `organization` = all. */
+  async compliance(
+    scope: ComplianceReport['scope'],
+    userId: string,
+    year: number,
+  ): Promise<ComplianceReport> {
+    const eligible =
+      scope === 'team' ? await this.repo.subtreeIds(userId) : await this.repo.allWorkingIds();
+    const total = eligible.length;
+
+    const mandatory = await this.repo.mandatoryCourses(year);
+    const courses = await Promise.all(
+      mandatory.map(async (m) => {
+        const completed = await this.repo.completedCount(m.CourseID, eligible);
+        return {
+          courseId: m.CourseID,
+          title: normalizeCourseName(m.CourseName),
+          discipline: m.Discipline,
+          total,
+          completed,
+          rate: total > 0 ? completed / total : 0,
+        };
+      }),
+    );
+
+    const overallRate =
+      courses.length > 0 ? courses.reduce((sum, c) => sum + c.rate, 0) / courses.length : 1;
+
+    return ComplianceReportSchema.parse({ year, scope, totalPeople: total, overallRate, courses });
+  }
+
+  /** The signed-in user's personal training summary (hours + required-course checklist). */
+  async myTraining(userId: string, year: number): Promise<MyTraining> {
+    const [hours, targetHours, registeredCount, mandatory] = await Promise.all([
+      this.repo.educationHours(userId, year),
+      this.repo.targetHours(year),
+      this.repo.registeredCount(userId, year),
+      this.repo.mandatoryCourses(year),
+    ]);
+
+    const required = await Promise.all(
+      mandatory.map(async (m) => ({
+        courseId: m.CourseID,
+        title: normalizeCourseName(m.CourseName),
+        discipline: m.Discipline,
+        completed: await this.repo.hasAttended(m.CourseID, userId),
+      })),
+    );
+
+    return MyTrainingSchema.parse({
+      employeeId: userId,
+      year,
+      hours,
+      targetHours,
+      registeredCount,
+      required,
+    });
+  }
+
+  /** Attendance rollup for a scope: did the caller's registered people actually attend (#10)? */
+  async attendance(
+    scope: AttendanceReport['scope'],
+    userId: string,
+    year: number,
+  ): Promise<AttendanceReport> {
+    const eligible =
+      scope === 'team' ? await this.repo.subtreeIds(userId) : await this.repo.allWorkingIds();
+    const rows = await this.repo.attendance(eligible, year);
+
+    const entries = rows.map((r) => ({
+      employeeId: String(r.sircID),
+      employeeName: `${r.firstName} ${r.lastName}`,
+      department: r.teamName ? r.teamName.replace(/^\((.*)\)$/, '$1') : null,
+      courseId: r.CourseID,
+      courseTitle: normalizeCourseName(r.CourseName),
+      discipline: r.Discipline,
+      registrationStatus: r.status,
+      attended: Boolean(r.attended),
+    }));
+    const attendedCount = entries.filter((e) => e.attended).length;
+
+    return AttendanceReportSchema.parse({
+      year,
+      scope,
+      totalRegistrations: entries.length,
+      attendedCount,
+      entries,
+    });
+  }
+
+  /** Yearly training budget vs committed spend (HR/admin only — enforced in the controller). */
+  async budget(year: number): Promise<BudgetReport> {
+    const [budget, committed, byDiscipline] = await Promise.all([
+      this.repo.yearlyBudget(year),
+      this.repo.committedSpend(year),
+      this.repo.spendByDiscipline(year),
+    ]);
+    return BudgetReportSchema.parse({ year, budget, committed, byDiscipline });
+  }
+}
