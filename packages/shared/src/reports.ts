@@ -52,3 +52,14 @@ export const ComplianceReport = z.object({
   courses: z.array(ComplianceCourse),
 });
 export type ComplianceReport = z.infer<typeof ComplianceReport>;
+
+/** Yearly training budget vs committed spend, for HR (plan §2.6). Budget-sensitive → HR/admin only. */
+export const BudgetReport = z.object({
+  year: z.number().int(),
+  budget: z.number().nonnegative(),
+  committed: z.number().nonnegative(),
+  byDiscipline: z.array(
+    z.object({ discipline: z.string(), amount: z.number().nonnegative() }),
+  ),
+});
+export type BudgetReport = z.infer<typeof BudgetReport>;

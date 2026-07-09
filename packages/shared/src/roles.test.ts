@@ -49,6 +49,8 @@ describe('Course platform refinement', () => {
     status: 'scheduled' as const,
     isMandatory: false,
     isInternal: true,
+    totalHours: 8,
+    sessions: [],
     capacity: null,
     selfRegistration: 'none' as const,
     ownerId: null,

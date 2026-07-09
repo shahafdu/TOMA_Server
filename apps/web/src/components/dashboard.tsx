@@ -8,8 +8,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import type { ComplianceReport, MyTraining } from '@toma/shared';
+import type { BudgetReport, ComplianceReport, MyTraining } from '@toma/shared';
 import { DisciplineChip } from '../ui/chips.js';
+import { money } from '../ui/format.js';
 
 export function HoursRing({ hours, target }: { hours: number; target: number }) {
   const pct = target > 0 ? Math.min(100, Math.round((hours / target) * 100)) : 0;
@@ -139,6 +140,81 @@ export function CompliancePanel({ report }: { report: ComplianceReport }) {
             </Typography>
           )}
         </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function BudgetPanel({ report }: { report: BudgetReport }) {
+  const remaining = report.budget - report.committed;
+  const pct = report.budget > 0 ? Math.min(100, Math.round((report.committed / report.budget) * 100)) : 0;
+  const over = remaining < 0;
+  const maxDiscipline = Math.max(1, ...report.byDiscipline.map((d) => d.amount));
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent sx={{ p: 3 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box>
+            <Typography variant="h6">Training budget</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {report.year} · committed vs. allocated
+            </Typography>
+          </Box>
+          <Box sx={{ textAlign: 'right' }}>
+            <Typography variant="h5" sx={{ lineHeight: 1.1 }}>
+              {money(report.budget)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              allocated
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Box sx={{ mt: 2 }}>
+          <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              Committed {money(report.committed)}
+            </Typography>
+            <Typography
+              variant="body2"
+              color={over ? 'error.main' : 'success.main'}
+              sx={{ fontWeight: 600 }}
+            >
+              {over ? `${money(Math.abs(remaining))} over` : `${money(remaining)} left`}
+            </Typography>
+          </Stack>
+          <LinearProgress
+            variant="determinate"
+            value={pct}
+            color={over ? 'error' : pct >= 85 ? 'warning' : 'success'}
+            sx={{ height: 10, borderRadius: 5 }}
+          />
+        </Box>
+
+        {report.byDiscipline.length > 0 && (
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Committed by discipline
+            </Typography>
+            <Stack spacing={1.5} sx={{ mt: 1 }}>
+              {report.byDiscipline.map((d) => (
+                <Stack key={d.discipline} direction="row" spacing={2} alignItems="center">
+                  <Box sx={{ width: 170 }}>
+                    <DisciplineChip discipline={d.discipline} />
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={(d.amount / maxDiscipline) * 100}
+                    sx={{ flexGrow: 1, height: 8, borderRadius: 4 }}
+                  />
+                  <Typography variant="body2" sx={{ width: 84, textAlign: 'right' }}>
+                    {money(d.amount)}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Box>
+        )}
       </CardContent>
     </Card>
   );

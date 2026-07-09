@@ -392,6 +392,31 @@
           "isInternal": {
             "type": "boolean"
           },
+          "totalHours": {
+            "type": "number",
+            "minimum": 0
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startsAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "endsAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "startsAt",
+                "endsAt"
+              ]
+            },
+            "default": []
+          },
           "price": {
             "type": [
               "number",
@@ -438,6 +463,7 @@
           "platformUrl",
           "isMandatory",
           "isInternal",
+          "totalHours",
           "capacity",
           "selfRegistration",
           "ownerId"
@@ -1193,6 +1219,47 @@
           "courses"
         ]
       },
+      "BudgetReport": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "budget": {
+            "type": "number",
+            "minimum": 0
+          },
+          "committed": {
+            "type": "number",
+            "minimum": 0
+          },
+          "byDiscipline": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "discipline": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "discipline",
+                "amount"
+              ]
+            }
+          }
+        },
+        "required": [
+          "year",
+          "budget",
+          "committed",
+          "byDiscipline"
+        ]
+      },
       "EmployeePage": {
         "type": "object",
         "properties": {
@@ -1375,6 +1442,31 @@
                 "isInternal": {
                   "type": "boolean"
                 },
+                "totalHours": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "startsAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "endsAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "startsAt",
+                      "endsAt"
+                    ]
+                  },
+                  "default": []
+                },
                 "price": {
                   "type": [
                     "number",
@@ -1421,6 +1513,7 @@
                 "platformUrl",
                 "isMandatory",
                 "isInternal",
+                "totalHours",
                 "capacity",
                 "selfRegistration",
                 "ownerId"
@@ -1925,6 +2018,11 @@
                       "null"
                     ]
                   },
+                  "totalHours": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0
+                  },
                   "deliveryType": {
                     "type": "string",
                     "enum": [
@@ -2092,6 +2190,31 @@
                     "isInternal": {
                       "type": "boolean"
                     },
+                    "totalHours": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "startsAt",
+                          "endsAt"
+                        ]
+                      },
+                      "default": []
+                    },
                     "price": {
                       "type": [
                         "number",
@@ -2138,6 +2261,7 @@
                     "platformUrl",
                     "isMandatory",
                     "isInternal",
+                    "totalHours",
                     "capacity",
                     "selfRegistration",
                     "ownerId"
@@ -2289,6 +2413,31 @@
                     "isInternal": {
                       "type": "boolean"
                     },
+                    "totalHours": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "startsAt",
+                          "endsAt"
+                        ]
+                      },
+                      "default": []
+                    },
                     "price": {
                       "type": [
                         "number",
@@ -2335,6 +2484,7 @@
                     "platformUrl",
                     "isMandatory",
                     "isInternal",
+                    "totalHours",
                     "capacity",
                     "selfRegistration",
                     "ownerId"
@@ -2426,6 +2576,11 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "totalHours": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0
                   },
                   "deliveryType": {
                     "type": "string",
@@ -2599,6 +2754,31 @@
                     "isInternal": {
                       "type": "boolean"
                     },
+                    "totalHours": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "startsAt",
+                          "endsAt"
+                        ]
+                      },
+                      "default": []
+                    },
                     "price": {
                       "type": [
                         "number",
@@ -2645,6 +2825,7 @@
                     "platformUrl",
                     "isMandatory",
                     "isInternal",
+                    "totalHours",
                     "capacity",
                     "selfRegistration",
                     "ownerId"
@@ -4393,6 +4574,87 @@
                     "totalPeople",
                     "overallRate",
                     "courses"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/budget": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Yearly training budget vs committed spend (HR/admin only)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "year",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Budget report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "year": {
+                      "type": "integer"
+                    },
+                    "budget": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "committed": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "byDiscipline": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "discipline": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "discipline",
+                          "amount"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "year",
+                    "budget",
+                    "committed",
+                    "byDiscipline"
                   ]
                 }
               }

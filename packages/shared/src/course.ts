@@ -57,6 +57,12 @@ export const Course = z
     platformUrl: z.string().url().nullable(),
     isMandatory: z.boolean(),
     isInternal: z.boolean(),
+    /** Total training hours across all sessions. */
+    totalHours: z.number().nonnegative(),
+    /** Lightweight session date summary for cards/calendar (full sessions via the sessions endpoint). */
+    sessions: z
+      .array(z.object({ startsAt: IsoDateTime, endsAt: IsoDateTime }))
+      .default([]),
     /** Budget-sensitive: masked for non-HR roles (plan §2.4). May be absent from the DTO. */
     price: z.number().nonnegative().nullable().optional(),
     capacity: z.number().int().positive().nullable(),
@@ -79,6 +85,7 @@ export const CreateCourseInput = z.object({
   mailText: z.string().nullable().optional(),
   type: CourseType,
   discipline: z.string().nullable().optional(),
+  totalHours: z.number().nonnegative().default(0),
   deliveryType: DeliveryType,
   platform: Platform.nullable().optional(),
   platformUrl: z.string().url().nullable().optional(),

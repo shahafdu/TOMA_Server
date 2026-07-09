@@ -148,13 +148,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
             <Box sx={{ px: 2, py: 1 }}>
               <Typography sx={{ fontWeight: 700 }}>{me.data?.fullName}</Typography>
-              <Chip
-                size="small"
-                label={role}
-                color="primary"
-                variant="outlined"
-                sx={{ mt: 0.5, textTransform: 'capitalize' }}
-              />
+              <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
+                <Chip
+                  size="small"
+                  label={role}
+                  color="primary"
+                  variant="outlined"
+                  sx={{ textTransform: 'capitalize' }}
+                />
+                {me.data?.hasTeam && (
+                  <Chip size="small" label="Manages a team" color="secondary" variant="outlined" />
+                )}
+              </Stack>
             </Box>
             <Divider />
             <MenuItem

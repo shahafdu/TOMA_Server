@@ -18,6 +18,7 @@ interface CourseRow extends RowDataPacket {
   Notes: string | null;
   TextForMail: string | null;
   Price: string; // DECIMAL returned as string by mysql2
+  TotalHours: string;
   Location: string | null;
   IsIn: number;
   IsMandatory: number;
@@ -26,6 +27,12 @@ interface CourseRow extends RowDataPacket {
   Discipline: string | null;
   Year: number;
   isTentative: number;
+}
+
+interface SessionSummaryRow extends RowDataPacket {
+  CourseID: number;
+  DateTimeStart: string;
+  DateTimeEnd: string;
 }
 
 const COURSE_SELECT = `
@@ -42,12 +49,36 @@ export class CoursesRepository {
       `${COURSE_SELECT} WHERE Year = ? ORDER BY CourseName`,
       [year],
     );
-    return rows.map(mapCourse);
+    const sessions = await this.sessionSummaries(rows.map((r) => r.CourseID));
+    return rows.map((r) => mapCourse(r, sessions.get(r.CourseID) ?? []));
   }
 
   async findById(id: number): Promise<Course | null> {
     const rows = await this.db.query<CourseRow>(`${COURSE_SELECT} WHERE CourseID = ?`, [id]);
-    return rows[0] ? mapCourse(rows[0]) : null;
+    if (!rows[0]) return null;
+    const sessions = await this.sessionSummaries([id]);
+    return mapCourse(rows[0], sessions.get(id) ?? []);
+  }
+
+  /** One grouped query for the lightweight session dates shown on cards/calendar. */
+  private async sessionSummaries(
+    courseIds: number[],
+  ): Promise<Map<number, { startsAt: string; endsAt: string }[]>> {
+    const map = new Map<number, { startsAt: string; endsAt: string }[]>();
+    if (courseIds.length === 0) return map;
+    const rows = await this.db.query<SessionSummaryRow>(
+      `SELECT CourseID, DateTimeStart, DateTimeEnd
+       FROM coma.coursetodatetime
+       WHERE CourseID IN (?)
+       ORDER BY DateTimeStart`,
+      [courseIds],
+    );
+    for (const r of rows) {
+      const arr = map.get(r.CourseID) ?? [];
+      arr.push({ startsAt: toIso(r.DateTimeStart), endsAt: toIso(r.DateTimeEnd) });
+      map.set(r.CourseID, arr);
+    }
+    return map;
   }
 
   async sessions(courseId: number): Promise<CourseSession[]> {
@@ -117,7 +148,10 @@ function toIso(dateString: string): string {
   return new Date(dateString.replace(' ', 'T') + 'Z').toISOString();
 }
 
-function mapCourse(row: CourseRow): Course {
+function mapCourse(
+  row: CourseRow,
+  sessions: { startsAt: string; endsAt: string }[],
+): Course {
   return CourseSchema.parse({
     id: row.CourseID,
     seriesId: null,
@@ -134,6 +168,8 @@ function mapCourse(row: CourseRow): Course {
     platformUrl: null,
     isMandatory: Boolean(row.IsMandatory),
     isInternal: Boolean(row.IsIn),
+    totalHours: Number(row.TotalHours),
+    sessions,
     price: Number(row.Price),
     capacity: null,
     selfRegistration: 'none',

@@ -223,6 +223,52 @@ describe('TOMA API (e2e, against mockup DB)', () => {
     });
   });
 
+  describe('courses expose total hours and session dates (S1 #2/#3)', () => {
+    it('returns totalHours and sorted session summaries on each course', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.get('/api/v1/courses?year=2026');
+      expect(res.status).toBe(200);
+      const k8s = res.body.find((c: { title: string }) => c.title === 'Kubernetes Fundamentals');
+      expect(k8s.totalHours).toBe(12);
+      expect(k8s.sessions).toHaveLength(2); // two seeded dates
+      expect(k8s.sessions[0].startsAt <= k8s.sessions[1].startsAt).toBe(true);
+      // Q4 course (Oct) — feeds the catalog quarter filter
+      expect(new Date(k8s.sessions[0].startsAt).getMonth()).toBe(9);
+    });
+
+    it('attaches sessions on the single-course detail too', async () => {
+      const { agent } = await login('carol');
+      const res = await agent.get('/api/v1/courses/201');
+      expect(res.status).toBe(200);
+      expect(res.body.totalHours).toBe(8);
+      expect(res.body.sessions).toHaveLength(2);
+    });
+  });
+
+  describe('training budget report (S1 #1)', () => {
+    it('gives HR the yearly budget, committed spend and per-discipline breakdown', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.get('/api/v1/reports/budget?year=2026');
+      expect(res.status).toBe(200);
+      expect(res.body.year).toBe(2026);
+      expect(res.body.budget).toBe(120000);
+      // committed = sum of non-tentative 2026 course prices (excludes tentative "Future AI")
+      expect(res.body.committed).toBeGreaterThan(0);
+      expect(Array.isArray(res.body.byDiscipline)).toBe(true);
+      const eng = res.body.byDiscipline.find(
+        (d: { discipline: string }) => d.discipline === 'Engineering',
+      );
+      expect(eng.amount).toBeGreaterThan(0);
+    });
+
+    it('forbids budget for a manager and an employee', async () => {
+      const bob = await login('bob');
+      expect((await bob.agent.get('/api/v1/reports/budget')).status).toBe(403);
+      const carol = await login('carol');
+      expect((await carol.agent.get('/api/v1/reports/budget')).status).toBe(403);
+    });
+  });
+
   describe('personal training summary (my view)', () => {
     it('returns hours, target and the required-course checklist', async () => {
       const { agent } = await login('carol');

@@ -10,9 +10,21 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useCompliance, useCourses, useEmployees, useMe, useMyTraining } from '../api/queries.js';
+import {
+  useBudget,
+  useCompliance,
+  useCourses,
+  useEmployees,
+  useMe,
+  useMyTraining,
+} from '../api/queries.js';
 import { CourseCard } from '../components/CourseCard.js';
-import { CompliancePanel, DisciplineBreakdown, MyTrainingCard } from '../components/dashboard.js';
+import {
+  BudgetPanel,
+  CompliancePanel,
+  DisciplineBreakdown,
+  MyTrainingCard,
+} from '../components/dashboard.js';
 import { EmptyState, Loading, PageHeader, StatCard } from '../components/common.js';
 import { greeting } from '../ui/format.js';
 
@@ -35,6 +47,7 @@ export function DashboardPage() {
   const role = me.data?.role ?? '';
   const hasTeam = me.data?.hasTeam ?? false;
   const canCompany = ['hr', 'admin', 'developer'].includes(role);
+  const canBudget = ['hr', 'developer'].includes(role);
 
   const views = useMemo<View[]>(() => {
     const v: View[] = ['personal'];
@@ -55,6 +68,7 @@ export function DashboardPage() {
     undefined,
     canCompany && active === 'company',
   );
+  const budget = useBudget(undefined, canBudget && active === 'company');
 
   const firstName = me.data?.fullName.split(' ')[0] ?? '';
   const list = courses.data ?? [];
@@ -182,6 +196,12 @@ export function DashboardPage() {
               accent="secondary.main"
             />
           </Box>
+
+          {canBudget && budget.data && (
+            <Box sx={{ mb: 4 }}>
+              <BudgetPanel report={budget.data} />
+            </Box>
+          )}
 
           <Box
             sx={{

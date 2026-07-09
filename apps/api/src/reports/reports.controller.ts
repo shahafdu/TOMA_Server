@@ -5,6 +5,8 @@ import { CurrentUser, type CurrentUserInfo } from '../auth/current-user.decorato
 import { ReportsService } from './reports.service.js';
 
 const ORG_ROLES = ['hr', 'admin', 'developer'];
+// Budget is HR-sensitive (plan §2.4) — hidden from admin/manager/employee.
+const BUDGET_ROLES = ['hr', 'developer'];
 
 @Controller()
 @UseGuards(AuthenticatedGuard)
@@ -23,6 +25,14 @@ export class ReportsController {
       throw new ForbiddenException({ error: 'Not permitted for this role' });
     }
     return this.reports.compliance(scope, user.userId, yearOf(year));
+  }
+
+  @Get('reports/budget')
+  budget(@CurrentUser() user: CurrentUserInfo, @Query('year') year?: string) {
+    if (!BUDGET_ROLES.includes(user.role)) {
+      throw new ForbiddenException({ error: 'Not permitted for this role' });
+    }
+    return this.reports.budget(yearOf(year));
   }
 
   @Get('me/training')

@@ -103,4 +103,38 @@ export class ReportsRepository {
     );
     return Number(rows[0]?.v ?? 0);
   }
+
+  async yearlyBudget(year: number): Promise<number> {
+    if (!KNOWN_YEARS.has(year)) return 0;
+    const rows = await this.db.query<ScalarRow>(
+      `SELECT yearlyBudget${year} AS v FROM coma.budget LIMIT 1`,
+    );
+    return Number(rows[0]?.v ?? 0);
+  }
+
+  /** Committed spend = sum of prices of the year's scheduled (non-tentative) courses. */
+  async committedSpend(year: number): Promise<number> {
+    const rows = await this.db.query<ScalarRow>(
+      'SELECT SUM(Price) AS v FROM coma.courses WHERE Year = ? AND isTentative = 0',
+      [year],
+    );
+    return Number(rows[0]?.v ?? 0);
+  }
+
+  async spendByDiscipline(year: number): Promise<{ discipline: string; amount: number }[]> {
+    const rows = await this.db.query<DisciplineSpendRow>(
+      `SELECT Discipline AS discipline, SUM(Price) AS amount
+       FROM coma.courses
+       WHERE Year = ? AND isTentative = 0 AND Discipline IS NOT NULL
+       GROUP BY Discipline
+       ORDER BY amount DESC`,
+      [year],
+    );
+    return rows.map((r) => ({ discipline: r.discipline, amount: Number(r.amount) }));
+  }
+}
+
+interface DisciplineSpendRow extends RowDataPacket {
+  discipline: string;
+  amount: string | number;
 }

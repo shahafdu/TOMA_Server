@@ -42,6 +42,30 @@ export function MandatoryChip() {
   return <Chip size="small" color="error" variant="outlined" label="Mandatory" />;
 }
 
+const QUARTER_COLOR: Record<number, string> = {
+  1: '#0ea5e9',
+  2: '#10b981',
+  3: '#f59e0b',
+  4: '#8b5cf6',
+};
+
+/** A small calendar-quarter badge (`Q2`) for training cards. */
+export function QuarterChip({ quarter }: { quarter: number }) {
+  const color = QUARTER_COLOR[quarter] ?? '#64748b';
+  return (
+    <Chip
+      size="small"
+      label={`Q${quarter}`}
+      sx={{
+        bgcolor: `${color}1f`,
+        color,
+        fontWeight: 700,
+        border: `1px solid ${color}55`,
+      }}
+    />
+  );
+}
+
 // Deterministic, calm background per discipline so the catalog reads as one system.
 const DISCIPLINE_COLORS: Record<string, string> = {
   Engineering: '#4f46e5',

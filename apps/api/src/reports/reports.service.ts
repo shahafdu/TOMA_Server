@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
+  type BudgetReport,
+  BudgetReport as BudgetReportSchema,
   type ComplianceReport,
   ComplianceReport as ComplianceReportSchema,
   type MyTraining,
@@ -69,5 +71,15 @@ export class ReportsService {
       registeredCount,
       required,
     });
+  }
+
+  /** Yearly training budget vs committed spend (HR/admin only — enforced in the controller). */
+  async budget(year: number): Promise<BudgetReport> {
+    const [budget, committed, byDiscipline] = await Promise.all([
+      this.repo.yearlyBudget(year),
+      this.repo.committedSpend(year),
+      this.repo.spendByDiscipline(year),
+    ]);
+    return BudgetReportSchema.parse({ year, budget, committed, byDiscipline });
   }
 }

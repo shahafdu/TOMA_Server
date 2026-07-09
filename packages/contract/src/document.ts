@@ -6,6 +6,7 @@ import {
 import { z } from 'zod';
 import {
   Attendance,
+  BudgetReport,
   ComplianceReport,
   Course,
   CourseSeries,
@@ -75,6 +76,7 @@ registry.register('EducationHours', EducationHours);
 registry.register('NotificationRule', NotificationRule);
 registry.register('MyTraining', MyTraining);
 registry.register('ComplianceReport', ComplianceReport);
+registry.register('BudgetReport', BudgetReport);
 
 function page<T extends z.ZodTypeAny>(name: string, item: T) {
   return registry.register(
@@ -372,6 +374,18 @@ registry.registerPath({
   },
   responses: {
     200: { description: 'Compliance report', content: json(ComplianceReport) },
+    403: problem('Not permitted for this role'),
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/reports/budget',
+  tags: ['reports'],
+  summary: 'Yearly training budget vs committed spend (HR/admin only)',
+  request: { query: z.object({ year: z.coerce.number().int().optional() }) },
+  responses: {
+    200: { description: 'Budget report', content: json(BudgetReport) },
     403: problem('Not permitted for this role'),
   },
 });

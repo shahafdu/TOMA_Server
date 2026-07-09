@@ -1,4 +1,5 @@
 import type {
+  BudgetReport,
   ComplianceReport,
   Course,
   CourseSession,
@@ -95,4 +96,5 @@ export const api = {
   myTraining: (year: number) => request<MyTraining>('GET', `/me/training?year=${year}`),
   compliance: (scope: ComplianceScope, year: number) =>
     request<ComplianceReport>('GET', `/reports/compliance?scope=${scope}&year=${year}`),
+  budget: (year: number) => request<BudgetReport>('GET', `/reports/budget?year=${year}`),
 };

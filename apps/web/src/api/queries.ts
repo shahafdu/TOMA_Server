@@ -78,3 +78,11 @@ export function useCompliance(
     enabled,
   });
 }
+
+export function useBudget(year: number = CURRENT_YEAR, enabled = true) {
+  return useQuery({
+    queryKey: ['reports', 'budget', year],
+    queryFn: () => api.budget(year),
+    enabled,
+  });
+}
