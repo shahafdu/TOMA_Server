@@ -3,7 +3,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AttendancePage } from './routes/AttendancePage.js';
 import { CalendarPage } from './routes/CalendarPage.js';
 import { CatalogPage } from './routes/CatalogPage.js';
+import { CourseAttendancePage } from './routes/CourseAttendancePage.js';
 import { CourseDetailPage } from './routes/CourseDetailPage.js';
+import { CyclePage } from './routes/CyclePage.js';
 import { DashboardPage } from './routes/DashboardPage.js';
 import { EmployeeProfilePage } from './routes/EmployeeProfilePage.js';
 import { EmployeesPage } from './routes/EmployeesPage.js';
@@ -23,6 +25,8 @@ export function AppRoutes() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/catalog/:id" element={<CourseDetailPage />} />
+        <Route path="/catalog/:id/attendance" element={<CourseAttendancePage />} />
+        <Route path="/cycle" element={<CyclePage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/employees" element={<EmployeesPage />} />

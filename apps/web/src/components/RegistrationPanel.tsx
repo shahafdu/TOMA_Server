@@ -54,15 +54,28 @@ function SeatSummary({ course }: { course: Course }) {
             ? 'Unlimited seats'
             : `${a.seatsLeft} of ${a.capacity} seats left`}
         {a && a.pending > 0 ? ` · ${a.pending} pending` : ''}
+        {a && a.waitlisted > 0 ? ` · ${a.waitlisted} waitlisted` : ''}
       </Typography>
     </Stack>
   );
 }
 
+function formatDeadline(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function RegistrationPanel({ course }: { course: Course }) {
   const me = useMe();
   const role = me.data?.role ?? '';
+  const isHr = ['hr', 'admin', 'developer'].includes(role);
   const isRegistrar = REGISTRAR_ROLES.includes(role);
+  const availability = useCourseAvailability(course.id);
+  const a = availability.data;
 
   return (
     <Card sx={{ height: '100%' }}>
@@ -71,9 +84,20 @@ export function RegistrationPanel({ course }: { course: Course }) {
           <Typography variant="h6">Registration</Typography>
         </Stack>
         <SeatSummary course={course} />
+        {a?.locked ? (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            Registration is locked{isHr ? ' — as HR you can still make changes.' : ' — contact HR for changes.'}
+          </Alert>
+        ) : (
+          a?.registrationClosesAt && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Registration closes {formatDeadline(a.registrationClosesAt)}.
+            </Alert>
+          )
+        )}
         <Divider sx={{ my: 2 }} />
         {isRegistrar ? (
-          <RosterList course={course} orgScope={['hr', 'admin', 'developer'].includes(role)} />
+          <RosterList course={course} orgScope={isHr} />
         ) : (
           <SelfRegister course={course} employeeId={me.data?.id ?? ''} />
         )}
@@ -170,22 +194,43 @@ function RosterList({ course, orgScope }: { course: Course; orgScope: boolean })
                   </span>
                 </Tooltip>
               </Stack>
-            ) : e.status === 'registered' ? (
-              <StatusPill status={e.status} />
+            ) : e.status === 'registered' || e.status === 'waitlisted' ? (
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <StatusPill status={e.status} />
+                <Tooltip title="Unregister">
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      disabled={busy === e.employee.id}
+                      onClick={() =>
+                        act(
+                          manage.mutateAsync({ employeeId: e.employee.id, action: 'cancel' }),
+                          e.employee.id,
+                        )
+                      }
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Stack>
             ) : e.eligible ? (
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={busy === e.employee.id}
-                onClick={() =>
-                  act(
-                    register.mutateAsync({ employeeId: e.employee.id, source: 'manager' }),
-                    e.employee.id,
-                  )
-                }
-              >
-                Register
-              </Button>
+              <Tooltip title={e.reason ?? ''}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={busy === e.employee.id}
+                  onClick={() =>
+                    act(
+                      register.mutateAsync({ employeeId: e.employee.id, source: 'manager' }),
+                      e.employee.id,
+                    )
+                  }
+                >
+                  {e.reason?.includes('waitlist') ? 'Waitlist' : 'Register'}
+                </Button>
+              </Tooltip>
             ) : (
               <Tooltip title={e.reason ?? 'Not eligible'}>
                 <span>

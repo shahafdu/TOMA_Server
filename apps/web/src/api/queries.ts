@@ -141,3 +141,117 @@ export function useManageRegistration(courseId: number) {
     onSuccess: refetch,
   });
 }
+
+// ---- Quarterly cycle workflow ----
+
+export function useCycleBoard(cycleId?: number) {
+  return useQuery({ queryKey: ['cycle', 'board', cycleId ?? 0], queryFn: () => api.cycleBoard(cycleId) });
+}
+
+export function useCourseBids(courseId: number, enabled = true) {
+  return useQuery({
+    queryKey: ['course', courseId, 'bids'],
+    queryFn: () => api.courseBids(courseId),
+    enabled,
+  });
+}
+
+export function useCycleActions() {
+  const qc = useQueryClient();
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ['cycle'] });
+    void qc.invalidateQueries({ queryKey: ['course'] });
+    void qc.invalidateQueries({ queryKey: ['courses'] });
+  };
+  return {
+    setBid: useMutation({
+      mutationFn: (v: { courseId: number; seats: number }) => api.setBid(v.courseId, v.seats),
+      onSuccess: invalidate,
+    }),
+    openBidding: useMutation({
+      mutationFn: (v: { cycleId: number; biddingClosesAt: string; courseIds: number[] }) =>
+        api.openBidding(v.cycleId, v.biddingClosesAt, v.courseIds),
+      onSuccess: invalidate,
+    }),
+    openRegistration: useMutation({
+      mutationFn: (v: { cycleId: number; registrationClosesAt: string; courseIds: number[] }) =>
+        api.openRegistration(v.cycleId, v.registrationClosesAt, v.courseIds),
+      onSuccess: invalidate,
+    }),
+    lock: useMutation({
+      mutationFn: (cycleId: number) => api.lockCycle(cycleId),
+      onSuccess: invalidate,
+    }),
+    decide: useMutation({
+      mutationFn: (v: { courseId: number; decision: 'confirm' | 'cancel' }) =>
+        api.decideCourse(v.courseId, v.decision),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+// ---- Notification outbox ----
+
+export function useNotifications() {
+  return useQuery({ queryKey: ['notifications'], queryFn: api.notifications });
+}
+
+export function useNotificationsUnread() {
+  return useQuery({
+    queryKey: ['notifications', 'unread'],
+    queryFn: api.notificationsUnread,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useNotificationActions() {
+  const qc = useQueryClient();
+  const invalidate = () => void qc.invalidateQueries({ queryKey: ['notifications'] });
+  return {
+    markRead: useMutation({ mutationFn: (id: number) => api.markNotificationRead(id), onSuccess: invalidate }),
+    markAllRead: useMutation({ mutationFn: () => api.markAllNotificationsRead(), onSuccess: invalidate }),
+    dispatch: useMutation({ mutationFn: () => api.dispatchNotifications(), onSuccess: invalidate }),
+  };
+}
+
+// ---- Per-day attendance & justifications ----
+
+export function useAttendanceGrid(courseId: number, enabled = true) {
+  return useQuery({
+    queryKey: ['course', courseId, 'attendance-grid'],
+    queryFn: () => api.attendanceGrid(courseId),
+    enabled,
+  });
+}
+
+export function useMarkAttendance(courseId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { employeeId: string; sessionStart: string; present: boolean }) =>
+      api.markAttendance(courseId, v.employeeId, v.sessionStart, v.present),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['course', courseId, 'attendance-grid'] });
+      void qc.invalidateQueries({ queryKey: ['justifications'] });
+    },
+  });
+}
+
+export function useJustifications() {
+  return useQuery({ queryKey: ['justifications'], queryFn: api.justifications });
+}
+
+export function useJustificationActions() {
+  const qc = useQueryClient();
+  const invalidate = () => void qc.invalidateQueries({ queryKey: ['justifications'] });
+  return {
+    submit: useMutation({
+      mutationFn: (v: { id: number; reason: string }) => api.submitJustification(v.id, v.reason),
+      onSuccess: invalidate,
+    }),
+    review: useMutation({
+      mutationFn: (v: { id: number; decision: 'accept' | 'reject' }) =>
+        api.reviewJustification(v.id, v.decision),
+      onSuccess: invalidate,
+    }),
+  };
+}

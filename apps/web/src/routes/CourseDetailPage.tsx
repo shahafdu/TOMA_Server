@@ -56,11 +56,29 @@ export function CourseDetailPage() {
         title={c.title}
         action={price ? <Typography variant="h5">{price}</Typography> : undefined}
       />
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 3 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        flexWrap="wrap"
+        alignItems="center"
+        sx={{ mb: 3 }}
+      >
         <TypeChip type={c.type} />
         <StatusChip status={c.status} />
         <DeliveryChip deliveryType={c.deliveryType} />
         {c.isMandatory && <MandatoryChip />}
+        {['hr', 'admin', 'developer'].includes(me.data?.role ?? '') && (
+          <Button
+            component={RouterLink}
+            to={`/catalog/${c.id}/attendance`}
+            size="small"
+            variant="outlined"
+            sx={{ ml: 'auto' }}
+          >
+            Take attendance
+          </Button>
+        )}
       </Stack>
 
       <Box

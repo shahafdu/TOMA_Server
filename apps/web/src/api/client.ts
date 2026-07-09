@@ -1,17 +1,23 @@
 import type {
+  AttendanceGrid,
+  AttendanceJustification,
   AttendanceReport,
   BudgetReport,
   ComplianceReport,
   Course,
   CourseAvailability,
+  CourseBid,
   CourseRoster,
   CourseSession,
+  CycleBoard,
   Employee,
   EmployeeSummary,
   MyTraining,
+  NotificationMessage,
   PriorParticipation,
   RegistrationResult,
   Role,
+  TrainingCycle,
 } from '@toma/shared';
 
 /**
@@ -113,4 +119,42 @@ export const api = {
   budget: (year: number) => request<BudgetReport>('GET', `/reports/budget?year=${year}`),
   attendance: (scope: ComplianceScope, year: number) =>
     request<AttendanceReport>('GET', `/reports/attendance?scope=${scope}&year=${year}`),
+
+  // ---- Quarterly cycle workflow ----
+  cycleBoard: (cycleId?: number) =>
+    request<CycleBoard | null>('GET', `/cycles/board${cycleId ? `?cycleId=${cycleId}` : ''}`),
+  setBid: (courseId: number, seats: number) =>
+    request<void>('POST', `/courses/${courseId}/bid`, { seats }),
+  courseBids: (courseId: number) => request<CourseBid[]>('GET', `/courses/${courseId}/bids`),
+  openBidding: (cycleId: number, biddingClosesAt: string, courseIds: number[]) =>
+    request<TrainingCycle>('POST', `/cycles/${cycleId}/open-bidding`, {
+      biddingClosesAt,
+      courseIds,
+    }),
+  openRegistration: (cycleId: number, registrationClosesAt: string, courseIds: number[]) =>
+    request<TrainingCycle>('POST', `/cycles/${cycleId}/open-registration`, {
+      registrationClosesAt,
+      courseIds,
+    }),
+  lockCycle: (cycleId: number) => request<TrainingCycle>('POST', `/cycles/${cycleId}/lock`),
+  decideCourse: (courseId: number, decision: 'confirm' | 'cancel') =>
+    request<{ state: string }>('POST', `/courses/${courseId}/decision`, { decision }),
+
+  // ---- Notification outbox ----
+  notifications: () => request<NotificationMessage[]>('GET', '/notifications'),
+  notificationsUnread: () => request<{ count: number }>('GET', '/notifications/unread-count'),
+  markNotificationRead: (id: number) => request<void>('POST', `/notifications/${id}/read`),
+  markAllNotificationsRead: () => request<void>('POST', '/notifications/read-all'),
+  dispatchNotifications: () => request<{ dispatched: number }>('POST', '/notifications/dispatch'),
+
+  // ---- Per-day attendance & justifications ----
+  attendanceGrid: (courseId: number) =>
+    request<AttendanceGrid>('GET', `/courses/${courseId}/attendance-grid`),
+  markAttendance: (courseId: number, employeeId: string, sessionStart: string, present: boolean) =>
+    request<void>('PUT', `/courses/${courseId}/attendance`, { employeeId, sessionStart, present }),
+  justifications: () => request<AttendanceJustification[]>('GET', '/justifications'),
+  submitJustification: (id: number, reason: string) =>
+    request<AttendanceJustification>('POST', `/justifications/${id}/submit`, { reason }),
+  reviewJustification: (id: number, decision: 'accept' | 'reject') =>
+    request<AttendanceJustification>('POST', `/justifications/${id}/review`, { decision }),
 };

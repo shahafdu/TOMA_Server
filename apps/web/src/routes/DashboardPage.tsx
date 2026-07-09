@@ -25,6 +25,7 @@ import {
   DisciplineBreakdown,
   MyTrainingCard,
 } from '../components/dashboard.js';
+import { JustificationsPanel } from '../components/JustificationsPanel.js';
 import { EmptyState, Loading, PageHeader, StatCard } from '../components/common.js';
 import { greeting } from '../ui/format.js';
 
@@ -134,6 +135,10 @@ export function DashboardPage() {
           ) : (
             myTraining.data && <MyTrainingCard data={myTraining.data} />
           )}
+
+          <Box sx={{ mt: 3 }}>
+            <JustificationsPanel hideWhenEmpty />
+          </Box>
 
           <PageHeader
             title="Course catalog"

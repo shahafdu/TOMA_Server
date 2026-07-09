@@ -19,6 +19,7 @@ import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { useAttendance, useMe } from '../api/queries.js';
 import { EmptyState, Loading, PageHeader, StatCard } from '../components/common.js';
+import { JustificationsPanel } from '../components/JustificationsPanel.js';
 import { DisciplineChip } from '../ui/chips.js';
 
 export function AttendancePage() {
@@ -144,6 +145,10 @@ export function AttendancePage() {
           </Card>
         </>
       )}
+
+      <Box sx={{ mt: 3 }}>
+        <JustificationsPanel />
+      </Box>
     </Box>
   );
 }

@@ -1,6 +1,7 @@
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonthOutlined';
 import DarkModeIcon from '@mui/icons-material/DarkModeOutlined';
 import FactCheckIcon from '@mui/icons-material/FactCheckOutlined';
+import HowToVoteIcon from '@mui/icons-material/HowToVoteOutlined';
 import LightModeIcon from '@mui/icons-material/LightModeOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -32,6 +33,7 @@ import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useMe } from '../api/queries.js';
 import { useColorMode } from '../ui/colorMode.js';
 import { initials } from '../ui/format.js';
+import { NotificationsBell } from './NotificationsBell.js';
 
 const DRAWER_WIDTH = 248;
 
@@ -45,6 +47,12 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: <SpaceDashboardIcon /> },
   { label: 'Course catalog', to: '/catalog', icon: <SchoolIcon /> },
+  {
+    label: 'Training cycle',
+    to: '/cycle',
+    icon: <HowToVoteIcon />,
+    roles: ['hr', 'admin', 'developer', 'manager'],
+  },
   { label: 'Calendar', to: '/calendar', icon: <CalendarMonthIcon /> },
   {
     label: 'Attendance',
@@ -142,6 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </IconButton>
           )}
           <Box sx={{ flexGrow: 1 }} />
+          <NotificationsBell />
           <Tooltip title={mode === 'light' ? 'Dark mode' : 'Light mode'}>
             <IconButton onClick={toggle} aria-label="Toggle color mode">
               {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
