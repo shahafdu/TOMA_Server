@@ -17,10 +17,12 @@ import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
+import Link from '@mui/material/Link';
 import { useCourse, useCourseParticipants, useCourseSessions, useMe } from '../api/queries.js';
 import { EmptyState, Loading, PageHeader } from '../components/common.js';
-import { DeliveryChip, MandatoryChip, StatusChip, TypeChip } from '../ui/chips.js';
-import { formatDate, formatTime, initials, money } from '../ui/format.js';
+import { RegistrationPanel } from '../components/RegistrationPanel.js';
+import { DeliveryChip, DisciplineChip, MandatoryChip, StatusChip, TypeChip } from '../ui/chips.js';
+import { formatDate, formatTime, hours, initials, money } from '../ui/format.js';
 
 export function CourseDetailPage() {
   const { id } = useParams();
@@ -61,7 +63,15 @@ export function CourseDetailPage() {
         {c.isMandatory && <MandatoryChip />}
       </Stack>
 
-      <Card>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2.5,
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 380px' },
+          alignItems: 'start',
+        }}
+      >
+        <Card>
         <Tabs
           value={tab}
           onChange={(_, v) => setTab(v)}
@@ -83,15 +93,53 @@ export function CourseDetailPage() {
               </Typography>
               <Divider />
               <Meta label="Year" value={String(c.year)} />
+              {c.discipline && (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography color="text.secondary">Discipline</Typography>
+                  <DisciplineChip discipline={c.discipline} />
+                </Stack>
+              )}
+              {c.totalHours > 0 && <Meta label="Total hours" value={hours(c.totalHours)} />}
               <Meta label="Delivery" value={c.deliveryType === 'online' ? 'Online' : 'In person'} />
-              <Meta label="Location" value={c.isInternal ? 'Internal' : 'External provider'} />
+              {c.deliveryType === 'online' && c.platformUrl ? (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography color="text.secondary">Connection link</Typography>
+                  <Link href={c.platformUrl} target="_blank" rel="noopener" sx={{ fontWeight: 600 }}>
+                    Join online
+                  </Link>
+                </Stack>
+              ) : (
+                c.location && <Meta label="Location" value={c.location} />
+              )}
+              <Meta label="Provider" value={c.isInternal ? 'Internal' : 'External provider'} />
               <Meta
                 label="Self-registration"
                 value={
-                  c.selfRegistration === 'none' ? 'Not open' : c.selfRegistration.replace('_', ' ')
+                  c.selfRegistration === 'none'
+                    ? 'Manager / HR only'
+                    : c.selfRegistration === 'open'
+                      ? 'Open'
+                      : 'Approval required'
                 }
               />
-              {c.capacity != null && <Meta label="Capacity" value={String(c.capacity)} />}
+              <Meta
+                label="Seats"
+                value={c.capacity == null ? 'Unlimited' : String(c.capacity)}
+              />
+              {c.restrictedTeams.length > 0 && (
+                <Meta label="Open to teams" value={c.restrictedTeams.join(', ')} />
+              )}
+              {(c.excludeSubcontractors || c.excludeStudents) && (
+                <Meta
+                  label="Excluded"
+                  value={[
+                    c.excludeSubcontractors ? 'Subcontractors' : null,
+                    c.excludeStudents ? 'Students' : null,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+                />
+              )}
             </Stack>
           )}
 
@@ -160,6 +208,9 @@ export function CourseDetailPage() {
             ))}
         </CardContent>
       </Card>
+
+        <RegistrationPanel course={c} />
+      </Box>
     </Box>
   );
 }

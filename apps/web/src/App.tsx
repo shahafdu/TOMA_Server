@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AttendancePage } from './routes/AttendancePage.js';
+import { CalendarPage } from './routes/CalendarPage.js';
 import { CatalogPage } from './routes/CatalogPage.js';
 import { CourseDetailPage } from './routes/CourseDetailPage.js';
 import { DashboardPage } from './routes/DashboardPage.js';
@@ -21,6 +23,8 @@ export function AppRoutes() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/catalog/:id" element={<CourseDetailPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/employees" element={<EmployeesPage />} />
         <Route path="/employees/:id" element={<EmployeeProfilePage />} />
       </Route>

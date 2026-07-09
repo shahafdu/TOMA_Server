@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
+  type AttendanceReport,
+  AttendanceReport as AttendanceReportSchema,
   type BudgetReport,
   BudgetReport as BudgetReportSchema,
   type ComplianceReport,
@@ -70,6 +72,37 @@ export class ReportsService {
       targetHours,
       registeredCount,
       required,
+    });
+  }
+
+  /** Attendance rollup for a scope: did the caller's registered people actually attend (#10)? */
+  async attendance(
+    scope: AttendanceReport['scope'],
+    userId: string,
+    year: number,
+  ): Promise<AttendanceReport> {
+    const eligible =
+      scope === 'team' ? await this.repo.subtreeIds(userId) : await this.repo.allWorkingIds();
+    const rows = await this.repo.attendance(eligible, year);
+
+    const entries = rows.map((r) => ({
+      employeeId: String(r.sircID),
+      employeeName: `${r.firstName} ${r.lastName}`,
+      department: r.teamName ? r.teamName.replace(/^\((.*)\)$/, '$1') : null,
+      courseId: r.CourseID,
+      courseTitle: normalizeCourseName(r.CourseName),
+      discipline: r.Discipline,
+      registrationStatus: r.status,
+      attended: Boolean(r.attended),
+    }));
+    const attendedCount = entries.filter((e) => e.attended).length;
+
+    return AttendanceReportSchema.parse({
+      year,
+      scope,
+      totalRegistrations: entries.length,
+      attendedCount,
+      entries,
     });
   }
 

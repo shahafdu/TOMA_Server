@@ -79,7 +79,7 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       const { agent } = await login('alice');
       const res = await agent.get('/api/v1/employees');
       expect(res.status).toBe(200);
-      expect(res.body.total).toBe(6);
+      expect(res.body.total).toBe(8); // 6 permanent + Frank (subcontractor) + Gina (student)
       const names = res.body.items.map((e: { fullName: string }) => e.fullName);
       expect(names).not.toContain('Erin Gross');
       // department normalized from the "(R&D)" legacy format
@@ -188,12 +188,12 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       const res = await agent.get('/api/v1/reports/compliance?year=2026');
       expect(res.status).toBe(200);
       expect(res.body.scope).toBe('organization');
-      expect(res.body.totalPeople).toBe(6);
+      expect(res.body.totalPeople).toBe(8);
       const titles = res.body.courses.map((c: { title: string }) => c.title);
       expect(titles).toEqual(expect.arrayContaining(['Security Awareness', 'Code of Conduct']));
       const coc = res.body.courses.find((c: { title: string }) => c.title === 'Code of Conduct');
-      expect(coc.total).toBe(6);
-      expect(coc.completed).toBe(5); // seeded 5 of 6 attended
+      expect(coc.total).toBe(8);
+      expect(coc.completed).toBe(5); // seeded 5 attended
       expect(res.body.overallRate).toBeGreaterThan(0);
       expect(res.body.overallRate).toBeLessThanOrEqual(1);
     });
@@ -203,7 +203,7 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       const res = await agent.get('/api/v1/reports/compliance?scope=team&year=2026');
       expect(res.status).toBe(200);
       expect(res.body.scope).toBe('team');
-      expect(res.body.totalPeople).toBe(2); // Carol + Dave (Erin left)
+      expect(res.body.totalPeople).toBe(4); // Carol + Dave + Frank + Gina (Erin left)
     });
 
     it('forbids an employee from the organization scope', async () => {
@@ -266,6 +266,180 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       expect((await bob.agent.get('/api/v1/reports/budget')).status).toBe(403);
       const carol = await login('carol');
       expect((await carol.agent.get('/api/v1/reports/budget')).status).toBe(403);
+    });
+  });
+
+  describe('course delivery: in-person room vs online link (delivery requirement)', () => {
+    it('online courses carry a connection link, no room, and unlimited seats', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.get('/api/v1/courses?year=2026');
+      const security = res.body.find((c: { title: string }) => c.title === 'Security Awareness');
+      expect(security.deliveryType).toBe('online');
+      expect(security.platformUrl).toMatch(/^https:\/\//);
+      expect(security.location).toBeNull();
+      expect(security.capacity).toBeNull(); // unlimited
+    });
+
+    it('in-person courses carry a room and (optionally) a seat cap', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.get('/api/v1/courses?year=2026');
+      const k8s = res.body.find((c: { title: string }) => c.title === 'Kubernetes Fundamentals');
+      expect(k8s.deliveryType).toBe('in_person');
+      expect(k8s.location).toBe('Room B');
+      expect(k8s.platformUrl).toBeNull();
+      expect(k8s.capacity).toBe(12);
+      expect(k8s.restrictedTeams).toEqual(['R&D']);
+    });
+  });
+
+  describe('seat availability (#8)', () => {
+    it('reports remaining seats for a capped in-person course', async () => {
+      const { agent } = await login('bob');
+      const res = await agent.get('/api/v1/courses/207/availability');
+      expect(res.status).toBe(200);
+      expect(res.body.capacity).toBe(12);
+      expect(res.body.registered).toBe(2); // Carol + Dave seeded
+      expect(res.body.seatsLeft).toBe(10);
+      expect(res.body.unlimited).toBe(false);
+    });
+
+    it('reports unlimited seats for an online course', async () => {
+      const { agent } = await login('bob');
+      const res = await agent.get('/api/v1/courses/208/availability');
+      expect(res.body.unlimited).toBe(true);
+      expect(res.body.seatsLeft).toBeNull();
+    });
+  });
+
+  describe('registration roster (#7)', () => {
+    it("gives a manager their team with per-person eligibility and seat accounting", async () => {
+      const { agent } = await login('bob');
+      const res = await agent.get('/api/v1/courses/207/roster');
+      expect(res.status).toBe(200);
+      const ids = res.body.entries.map((e: { employee: { id: string } }) => e.employee.id).sort();
+      expect(ids).toEqual(['3', '4', '8', '9']); // Bob's subtree incl. contractor + student
+      const carol = res.body.entries.find((e: { employee: { id: string } }) => e.employee.id === '3');
+      expect(carol.status).toBe('registered');
+      expect(carol.eligible).toBe(false); // already registered
+      const frank = res.body.entries.find((e: { employee: { id: string } }) => e.employee.id === '8');
+      expect(frank.eligible).toBe(true); // R&D, no exclusion on this course
+      expect(res.body.availability.seatsLeft).toBe(10);
+    });
+
+    it('forbids the roster for a plain employee', async () => {
+      const { agent } = await login('carol');
+      expect((await agent.get('/api/v1/courses/207/roster')).status).toBe(403);
+    });
+  });
+
+  describe('registration constraints (#8/#9)', () => {
+    it('excludes students from a course that excludes students', async () => {
+      const { agent } = await login('bob');
+      const res = await agent
+        .post('/api/v1/courses/201/registrations')
+        .send({ employeeId: '9', source: 'manager' }); // Gina is a student; 201 excludes students
+      expect(res.status).toBe(403);
+      expect(res.body.detail ?? res.body.title).toMatch(/student/i);
+    });
+
+    it('excludes subcontractors from a course that excludes subcontractors', async () => {
+      const { agent } = await login('bob');
+      const res = await agent
+        .post('/api/v1/courses/205/registrations')
+        .send({ employeeId: '8', source: 'manager' }); // Frank is a subcontractor; 205 excludes them
+      expect(res.status).toBe(403);
+      expect(res.body.detail ?? res.body.title).toMatch(/subcontractor/i);
+    });
+
+    it('blocks registration from a team that is not allowed (team restriction)', async () => {
+      const { agent } = await login('alice');
+      const res = await agent
+        .post('/api/v1/courses/207/registrations')
+        .send({ employeeId: '5', source: 'hr' }); // Ada is in IT; 207 is R&D-only
+      expect(res.status).toBe(403);
+      expect(res.body.detail ?? res.body.title).toMatch(/team/i);
+    });
+  });
+
+  describe('self-registration policy (#7)', () => {
+    it('rejects self-registration when the course is not open for it', async () => {
+      const { agent } = await login('devuser');
+      const res = await agent
+        .post('/api/v1/courses/202/registrations') // Java: selfRegistration none
+        .send({ employeeId: '6', source: 'self' });
+      expect(res.status).toBe(403);
+    });
+
+    it('registers directly on an open self-registration course', async () => {
+      const { agent } = await login('devuser');
+      const res = await agent
+        .post('/api/v1/courses/210/registrations') // Design Systems: open
+        .send({ employeeId: '6', source: 'self' });
+      expect(res.status).toBe(201);
+      expect(res.body.registration.status).toBe('registered');
+    });
+
+    it('creates a pending request on an approval-required course', async () => {
+      const { agent } = await login('devuser');
+      const res = await agent
+        .post('/api/v1/courses/209/registrations') // Effective Communication: approval_required
+        .send({ employeeId: '6', source: 'self' });
+      expect(res.status).toBe(201);
+      expect(res.body.registration.status).toBe('pending_approval');
+    });
+
+    it('forbids self-registering someone else', async () => {
+      const { agent } = await login('carol');
+      const res = await agent
+        .post('/api/v1/courses/210/registrations')
+        .send({ employeeId: '4', source: 'self' });
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('approve / decline a pending registration (#7)', () => {
+    it('lets a manager approve a pending self-request from their team', async () => {
+      const { agent } = await login('bob');
+      const res = await agent
+        .patch('/api/v1/courses/209/registrations/4') // Dave's seeded pending request
+        .send({ action: 'approve' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('registered');
+    });
+
+    it('404s when there is no such registration to manage', async () => {
+      const { agent } = await login('bob');
+      const res = await agent
+        .patch('/api/v1/courses/207/registrations/999')
+        .send({ action: 'cancel' });
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('attendance report (#10)', () => {
+    it('gives a manager their team attendance (only subtree people)', async () => {
+      const { agent } = await login('bob');
+      const res = await agent.get('/api/v1/reports/attendance?scope=team&year=2026');
+      expect(res.status).toBe(200);
+      expect(res.body.scope).toBe('team');
+      const ids = new Set(res.body.entries.map((e: { employeeId: string }) => e.employeeId));
+      for (const id of ids) expect(['3', '4', '8', '9']).toContain(id);
+      expect(res.body.attendedCount).toBeLessThanOrEqual(res.body.totalRegistrations);
+    });
+
+    it('gives HR the whole-org attendance list', async () => {
+      const { agent } = await login('alice');
+      const res = await agent.get('/api/v1/reports/attendance?scope=organization&year=2026');
+      expect(res.status).toBe(200);
+      expect(res.body.scope).toBe('organization');
+      const attended = res.body.entries.filter((e: { attended: boolean }) => e.attended);
+      expect(attended.length).toBeGreaterThan(0); // seeded compliance attendance
+    });
+
+    it('forbids org-wide attendance for a plain employee', async () => {
+      const { agent } = await login('carol');
+      const res = await agent.get('/api/v1/reports/attendance?scope=organization');
+      expect(res.status).toBe(403);
     });
   });
 

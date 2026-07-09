@@ -53,6 +53,32 @@ export const ComplianceReport = z.object({
 });
 export type ComplianceReport = z.infer<typeof ComplianceReport>;
 
+/** One registered person on one course, and whether they actually attended (requirement #10). */
+export const AttendanceEntry = z.object({
+  employeeId: EmployeeId,
+  employeeName: z.string(),
+  department: z.string().nullable(),
+  courseId: CourseId,
+  courseTitle: z.string(),
+  discipline: z.string().nullable(),
+  registrationStatus: z.string(),
+  attended: z.boolean(),
+});
+export type AttendanceEntry = z.infer<typeof AttendanceEntry>;
+
+/**
+ * Attendance rollup: did the caller's registered people actually attend (requirement #10)?
+ * scope=team is a manager's org subtree; scope=organization is HR's whole-company list.
+ */
+export const AttendanceReport = z.object({
+  year: z.number().int(),
+  scope: z.enum(['organization', 'team']),
+  totalRegistrations: z.number().int().nonnegative(),
+  attendedCount: z.number().int().nonnegative(),
+  entries: z.array(AttendanceEntry),
+});
+export type AttendanceReport = z.infer<typeof AttendanceReport>;
+
 /** Yearly training budget vs committed spend, for HR (plan §2.6). Budget-sensitive → HR/admin only. */
 export const BudgetReport = z.object({
   year: z.number().int(),

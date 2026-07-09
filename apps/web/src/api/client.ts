@@ -1,7 +1,10 @@
 import type {
+  AttendanceReport,
   BudgetReport,
   ComplianceReport,
   Course,
+  CourseAvailability,
+  CourseRoster,
   CourseSession,
   Employee,
   EmployeeSummary,
@@ -92,9 +95,22 @@ export const api = {
       employeeId,
       source,
     }),
+  manageRegistration: (
+    courseId: number,
+    employeeId: string,
+    action: 'approve' | 'decline' | 'cancel',
+  ) =>
+    request<{ status: string }>('PATCH', `/courses/${courseId}/registrations/${employeeId}`, {
+      action,
+    }),
+  courseAvailability: (id: number) =>
+    request<CourseAvailability>('GET', `/courses/${id}/availability`),
+  courseRoster: (id: number) => request<CourseRoster>('GET', `/courses/${id}/roster`),
 
   myTraining: (year: number) => request<MyTraining>('GET', `/me/training?year=${year}`),
   compliance: (scope: ComplianceScope, year: number) =>
     request<ComplianceReport>('GET', `/reports/compliance?scope=${scope}&year=${year}`),
   budget: (year: number) => request<BudgetReport>('GET', `/reports/budget?year=${year}`),
+  attendance: (scope: ComplianceScope, year: number) =>
+    request<AttendanceReport>('GET', `/reports/attendance?scope=${scope}&year=${year}`),
 };

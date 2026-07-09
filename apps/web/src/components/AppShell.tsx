@@ -1,4 +1,6 @@
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonthOutlined';
 import DarkModeIcon from '@mui/icons-material/DarkModeOutlined';
+import FactCheckIcon from '@mui/icons-material/FactCheckOutlined';
 import LightModeIcon from '@mui/icons-material/LightModeOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -43,6 +45,13 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: <SpaceDashboardIcon /> },
   { label: 'Course catalog', to: '/catalog', icon: <SchoolIcon /> },
+  { label: 'Calendar', to: '/calendar', icon: <CalendarMonthIcon /> },
+  {
+    label: 'Attendance',
+    to: '/attendance',
+    icon: <FactCheckIcon />,
+    roles: ['hr', 'admin', 'developer', 'manager'],
+  },
   {
     label: 'Employees',
     to: '/employees',

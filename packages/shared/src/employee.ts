@@ -39,6 +39,7 @@ export const EmployeeSummary = Employee.pick({
   department: true,
   title: true,
   managerId: true,
+  category: true,
   status: true,
 });
 export type EmployeeSummary = z.infer<typeof EmployeeSummary>;

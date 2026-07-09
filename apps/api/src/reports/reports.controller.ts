@@ -1,5 +1,5 @@
 import { Controller, ForbiddenException, Get, Query, UseGuards } from '@nestjs/common';
-import type { ComplianceReport } from '@toma/shared';
+import type { AttendanceReport, ComplianceReport } from '@toma/shared';
 import { AuthenticatedGuard } from '../auth/authenticated.guard.js';
 import { CurrentUser, type CurrentUserInfo } from '../auth/current-user.decorator.js';
 import { ReportsService } from './reports.service.js';
@@ -25,6 +25,20 @@ export class ReportsController {
       throw new ForbiddenException({ error: 'Not permitted for this role' });
     }
     return this.reports.compliance(scope, user.userId, yearOf(year));
+  }
+
+  @Get('reports/attendance')
+  attendance(
+    @CurrentUser() user: CurrentUserInfo,
+    @Query('scope') scopeParam?: string,
+    @Query('year') year?: string,
+  ) {
+    const scope: AttendanceReport['scope'] = scopeParam === 'organization' ? 'organization' : 'team';
+    // Whole-org attendance is HR/admin only; team scope is anyone with reports.
+    if (scope === 'organization' && !ORG_ROLES.includes(user.role)) {
+      throw new ForbiddenException({ error: 'Not permitted for this role' });
+    }
+    return this.reports.attendance(scope, user.userId, yearOf(year));
   }
 
   @Get('reports/budget')

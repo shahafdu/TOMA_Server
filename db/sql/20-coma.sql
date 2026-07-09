@@ -11,12 +11,21 @@ CREATE TABLE courses (
   Price                        DECIMAL(10, 2) NOT NULL DEFAULT 0,
   Notes                        VARCHAR(400)  NULL,
   TextForMail                  TEXT          NULL,
-  Location                     VARCHAR(128)  NULL,
+  Location                     VARCHAR(128)  NULL,          -- in-person: room / external venue
   IsIn                         TINYINT(1)    NOT NULL DEFAULT 1,
   IsMandatory                  TINYINT(1)    NOT NULL DEFAULT 0,
   IsConference                 TINYINT(1)    NOT NULL DEFAULT 0,
   CourseType                   INT           NOT NULL DEFAULT 0,
   Discipline                   VARCHAR(64)   NULL,          -- NEW (additive): subject domain
+  -- NEW (additive, plan §2.3.1 + registration epic): delivery, seats, self-reg, constraints.
+  DeliveryType                 VARCHAR(16)   NOT NULL DEFAULT 'in_person',  -- 'in_person' | 'online'
+  Platform                     VARCHAR(16)   NULL,          -- online: 'corporate' | 'other'
+  PlatformUrl                  VARCHAR(512)  NULL,          -- online: connection link
+  Capacity                     INT           NULL,          -- total seat cap (NULL = unlimited)
+  PerManagerLimit              INT           NULL,          -- max seats a single manager may fill
+  SelfRegistration             VARCHAR(24)   NOT NULL DEFAULT 'none', -- 'none'|'open'|'approval_required'
+  ExcludeSubcontractors        TINYINT(1)    NOT NULL DEFAULT 0,
+  ExcludeStudents              TINYINT(1)    NOT NULL DEFAULT 0,
   Year                         INT           NOT NULL,
   Creator                      VARCHAR(128)  NULL,
   isTentative                  TINYINT(1)    NOT NULL DEFAULT 0,
@@ -26,10 +35,25 @@ CREATE TABLE courses (
 );
 
 CREATE TABLE coursetouser (
-  CourseID INT NOT NULL,
-  ID       INT NOT NULL,
+  CourseID    INT NOT NULL,
+  ID          INT NOT NULL,
+  -- NEW (additive): registration lifecycle so self-service + approval can be represented.
+  status      VARCHAR(20) NOT NULL DEFAULT 'registered', -- registered|pending_approval|waitlisted|declined|cancelled
+  source      VARCHAR(10) NOT NULL DEFAULT 'hr',          -- hr|manager|self
+  requestedBy INT NULL,
+  approvedBy  INT NULL,
+  createdAt   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (CourseID, ID),
-  INDEX idx_ctu_user (ID)
+  INDEX idx_ctu_user (ID),
+  INDEX idx_ctu_status (CourseID, status)
+);
+
+-- NEW (additive, registration epic #8): restrict a course's registration to specific teams.
+-- No rows for a course ⇒ open to all teams.
+CREATE TABLE course_team_restriction (
+  CourseID INT         NOT NULL,
+  teamName VARCHAR(64) NOT NULL,
+  PRIMARY KEY (CourseID, teamName)
 );
 
 CREATE TABLE coursetodatetime (

@@ -5,6 +5,7 @@ import {
   type RegistrationResult,
   RegistrationResult as RegistrationResultSchema,
   type RegistrationSource,
+  type RegistrationStatus,
 } from '@toma/shared';
 import type { RowDataPacket } from 'mysql2';
 import { DbService } from '../db/db.service.js';
@@ -12,6 +13,14 @@ import { normalizeCourseName } from '../util/course-name.js';
 
 interface NameRow extends RowDataPacket {
   CourseName: string;
+}
+interface RegStatusRow extends RowDataPacket {
+  ID: number;
+  status: string;
+}
+interface StatusCountRow extends RowDataPacket {
+  status: string;
+  c: number;
 }
 interface PriorRow extends RowDataPacket {
   CourseID: number;
@@ -36,11 +45,17 @@ export class RegistrationsRepository {
     courseId: number,
     employeeId: string,
     source: RegistrationSource,
+    status: RegistrationStatus,
+    requestedBy: string | null,
   ): Promise<RegistrationResult> {
-    await this.db.query('INSERT IGNORE INTO coma.coursetouser (CourseID, ID) VALUES (?, ?)', [
-      courseId,
-      employeeId,
-    ]);
+    // Upsert so a re-request after a decline/cancel re-opens the row with the new status.
+    await this.db.query(
+      `INSERT INTO coma.coursetouser (CourseID, ID, status, source, requestedBy)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE status = VALUES(status), source = VALUES(source),
+                               requestedBy = VALUES(requestedBy)`,
+      [courseId, employeeId, status, source, requestedBy],
+    );
     const now = new Date().toISOString();
     return RegistrationResultSchema.parse({
       registration: {
@@ -48,9 +63,9 @@ export class RegistrationsRepository {
         id: courseId * 100000 + Number(employeeId),
         courseId,
         employeeId,
-        status: 'registered',
+        status,
         source,
-        requestedBy: null,
+        requestedBy,
         approvedBy: null,
         createdAt: now,
         updatedAt: now,
@@ -58,6 +73,52 @@ export class RegistrationsRepository {
       priorParticipations: await this.priorParticipations(courseId, employeeId),
       conflicts: await this.conflicts(courseId, employeeId),
     });
+  }
+
+  /** Current registration status per employee for a course (excludes cleared rows). */
+  async registrationsFor(courseId: number): Promise<Map<string, RegistrationStatus>> {
+    const rows = await this.db.query<RegStatusRow>(
+      'SELECT ID, status FROM coma.coursetouser WHERE CourseID = ?',
+      [courseId],
+    );
+    const map = new Map<string, RegistrationStatus>();
+    for (const r of rows) map.set(String(r.ID), r.status as RegistrationStatus);
+    return map;
+  }
+
+  /** Registered / pending head-counts for a course (drives seat availability). */
+  async statusCounts(courseId: number): Promise<{ registered: number; pending: number }> {
+    const rows = await this.db.query<StatusCountRow>(
+      `SELECT status, COUNT(*) AS c FROM coma.coursetouser WHERE CourseID = ? GROUP BY status`,
+      [courseId],
+    );
+    let registered = 0;
+    let pending = 0;
+    for (const r of rows) {
+      if (r.status === 'registered') registered = Number(r.c);
+      else if (r.status === 'pending_approval') pending = Number(r.c);
+    }
+    return { registered, pending };
+  }
+
+  async statusOf(courseId: number, employeeId: string): Promise<RegistrationStatus | null> {
+    const rows = await this.db.query<RegStatusRow>(
+      'SELECT ID, status FROM coma.coursetouser WHERE CourseID = ? AND ID = ?',
+      [courseId, employeeId],
+    );
+    return rows[0] ? (rows[0].status as RegistrationStatus) : null;
+  }
+
+  async updateStatus(
+    courseId: number,
+    employeeId: string,
+    status: RegistrationStatus,
+    approvedBy: string | null,
+  ): Promise<void> {
+    await this.db.query(
+      'UPDATE coma.coursetouser SET status = ?, approvedBy = ? WHERE CourseID = ? AND ID = ?',
+      [status, approvedBy, courseId, employeeId],
+    );
   }
 
   async precheck(courseId: number, employeeId: string): Promise<RegistrationResult> {

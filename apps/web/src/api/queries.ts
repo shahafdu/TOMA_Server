@@ -86,3 +86,58 @@ export function useBudget(year: number = CURRENT_YEAR, enabled = true) {
     enabled,
   });
 }
+
+export function useAttendance(
+  scope: 'team' | 'organization',
+  year: number = CURRENT_YEAR,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['reports', 'attendance', scope, year],
+    queryFn: () => api.attendance(scope, year),
+    enabled,
+  });
+}
+
+export function useCourseAvailability(id: number, enabled = true) {
+  return useQuery({
+    queryKey: ['course', id, 'availability'],
+    queryFn: () => api.courseAvailability(id),
+    enabled,
+  });
+}
+
+export function useCourseRoster(id: number, enabled = true) {
+  return useQuery({
+    queryKey: ['course', id, 'roster'],
+    queryFn: () => api.courseRoster(id),
+    enabled,
+  });
+}
+
+/** Invalidate everything tied to a course's registration state after a write. */
+function useCourseRefetch(courseId: number) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ['course', courseId] });
+    void qc.invalidateQueries({ queryKey: ['reports'] });
+  };
+}
+
+export function useRegister(courseId: number) {
+  const refetch = useCourseRefetch(courseId);
+  return useMutation({
+    mutationFn: (vars: { employeeId: string; source: 'hr' | 'manager' | 'self' }) =>
+      api.register(courseId, vars.employeeId, vars.source),
+    onSuccess: refetch,
+  });
+}
+
+export function useManageRegistration(courseId: number) {
+  const refetch = useCourseRefetch(courseId);
+  return useMutation({
+    mutationFn: (vars: { employeeId: string; action: 'approve' | 'decline' | 'cancel' }) =>
+      api.manageRegistration(courseId, vars.employeeId, vars.action),
+    onSuccess: refetch,
+  });
+}

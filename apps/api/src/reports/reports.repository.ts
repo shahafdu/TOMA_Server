@@ -132,9 +132,40 @@ export class ReportsRepository {
     );
     return rows.map((r) => ({ discipline: r.discipline, amount: Number(r.amount) }));
   }
+
+  /** Every in-scope registration this year with whether the person actually attended (#10). */
+  async attendance(eligibleIds: number[], year: number): Promise<AttendanceDataRow[]> {
+    if (eligibleIds.length === 0) return [];
+    return this.db.query<AttendanceDataRow>(
+      `SELECT u.sircID, u.firstName, u.lastName, u.teamName,
+              c.CourseID, c.CourseName, c.Discipline, cu.status,
+              EXISTS(
+                SELECT 1 FROM coma.coursedatetimetouser a
+                WHERE a.CourseID = c.CourseID AND a.ID = u.sircID
+              ) AS attended
+       FROM coma.coursetouser cu
+       JOIN coma.courses c ON c.CourseID = cu.CourseID
+       JOIN emma.users u ON u.sircID = cu.ID
+       WHERE c.Year = ? AND cu.ID IN (?) AND cu.status IN ('registered', 'pending_approval')
+       ORDER BY u.firstName, u.lastName, c.CourseName`,
+      [year, eligibleIds],
+    );
+  }
 }
 
 interface DisciplineSpendRow extends RowDataPacket {
   discipline: string;
   amount: string | number;
+}
+
+interface AttendanceDataRow extends RowDataPacket {
+  sircID: number;
+  firstName: string;
+  lastName: string;
+  teamName: string | null;
+  CourseID: number;
+  CourseName: string;
+  Discipline: string | null;
+  status: string;
+  attended: number;
 }

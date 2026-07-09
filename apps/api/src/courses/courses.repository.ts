@@ -25,6 +25,14 @@ interface CourseRow extends RowDataPacket {
   IsConference: number;
   CourseType: number;
   Discipline: string | null;
+  DeliveryType: string;
+  Platform: string | null;
+  PlatformUrl: string | null;
+  Capacity: number | null;
+  PerManagerLimit: number | null;
+  SelfRegistration: string;
+  ExcludeSubcontractors: number;
+  ExcludeStudents: number;
   Year: number;
   isTentative: number;
 }
@@ -35,9 +43,16 @@ interface SessionSummaryRow extends RowDataPacket {
   DateTimeEnd: string;
 }
 
+interface TeamRestrictionRow extends RowDataPacket {
+  CourseID: number;
+  teamName: string;
+}
+
 const COURSE_SELECT = `
   SELECT CourseID, CourseName, Syllabus, Notes, TextForMail, TotalHours, Price, Location,
-         IsIn, IsMandatory, IsConference, CourseType, Discipline, Year, isTentative
+         IsIn, IsMandatory, IsConference, CourseType, Discipline, DeliveryType, Platform,
+         PlatformUrl, Capacity, PerManagerLimit, SelfRegistration, ExcludeSubcontractors,
+         ExcludeStudents, Year, isTentative
   FROM coma.courses`;
 
 @Injectable()
@@ -49,15 +64,40 @@ export class CoursesRepository {
       `${COURSE_SELECT} WHERE Year = ? ORDER BY CourseName`,
       [year],
     );
-    const sessions = await this.sessionSummaries(rows.map((r) => r.CourseID));
-    return rows.map((r) => mapCourse(r, sessions.get(r.CourseID) ?? []));
+    const ids = rows.map((r) => r.CourseID);
+    const [sessions, teams] = await Promise.all([
+      this.sessionSummaries(ids),
+      this.teamRestrictions(ids),
+    ]);
+    return rows.map((r) =>
+      mapCourse(r, sessions.get(r.CourseID) ?? [], teams.get(r.CourseID) ?? []),
+    );
   }
 
   async findById(id: number): Promise<Course | null> {
     const rows = await this.db.query<CourseRow>(`${COURSE_SELECT} WHERE CourseID = ?`, [id]);
     if (!rows[0]) return null;
-    const sessions = await this.sessionSummaries([id]);
-    return mapCourse(rows[0], sessions.get(id) ?? []);
+    const [sessions, teams] = await Promise.all([
+      this.sessionSummaries([id]),
+      this.teamRestrictions([id]),
+    ]);
+    return mapCourse(rows[0], sessions.get(id) ?? [], teams.get(id) ?? []);
+  }
+
+  /** Team/group restrictions per course (requirement #8); no rows ⇒ open to all teams. */
+  private async teamRestrictions(courseIds: number[]): Promise<Map<number, string[]>> {
+    const map = new Map<number, string[]>();
+    if (courseIds.length === 0) return map;
+    const rows = await this.db.query<TeamRestrictionRow>(
+      `SELECT CourseID, teamName FROM coma.course_team_restriction WHERE CourseID IN (?)`,
+      [courseIds],
+    );
+    for (const r of rows) {
+      const arr = map.get(r.CourseID) ?? [];
+      arr.push(r.teamName);
+      map.set(r.CourseID, arr);
+    }
+    return map;
   }
 
   /** One grouped query for the lightweight session dates shown on cards/calendar. */
@@ -105,24 +145,14 @@ export class CoursesRepository {
   async participants(courseId: number): Promise<EmployeeSummary[]> {
     const rows = await this.db.query<ParticipantRow>(
       `SELECT u.sircID, u.firstName, u.lastName, u.email, u.teamName, u.workTitle,
-              u.managerSircID, u.status
+              u.managerSircID, u.category, u.status
        FROM coma.coursetouser cu
        JOIN emma.users u ON u.sircID = cu.ID
-       WHERE cu.CourseID = ?
+       WHERE cu.CourseID = ? AND cu.status IN ('registered', 'pending_approval')
        ORDER BY u.firstName, u.lastName`,
       [courseId],
     );
-    return rows.map((r) =>
-      EmployeeSummarySchema.parse({
-        id: String(r.sircID),
-        fullName: `${r.firstName} ${r.lastName}`,
-        email: r.email,
-        department: r.teamName ? r.teamName.replace(/^\((.*)\)$/, '$1') : null,
-        title: r.workTitle,
-        managerId: r.managerSircID != null ? String(r.managerSircID) : null,
-        status: r.status,
-      }),
-    );
+    return rows.map((r) => toSummary(r));
   }
 }
 
@@ -141,7 +171,22 @@ interface ParticipantRow extends RowDataPacket {
   teamName: string | null;
   workTitle: string | null;
   managerSircID: number | null;
+  category: string | null;
   status: string;
+}
+
+/** Map an emma.users row to the compact EmployeeSummary (team name de-parenthesized). */
+export function toSummary(r: ParticipantRow): EmployeeSummary {
+  return EmployeeSummarySchema.parse({
+    id: String(r.sircID),
+    fullName: `${r.firstName} ${r.lastName}`,
+    email: r.email,
+    department: r.teamName ? r.teamName.replace(/^\((.*)\)$/, '$1') : null,
+    title: r.workTitle,
+    managerId: r.managerSircID != null ? String(r.managerSircID) : null,
+    category: r.category,
+    status: r.status,
+  });
 }
 
 function toIso(dateString: string): string {
@@ -151,7 +196,10 @@ function toIso(dateString: string): string {
 function mapCourse(
   row: CourseRow,
   sessions: { startsAt: string; endsAt: string }[],
+  restrictedTeams: string[],
 ): Course {
+  const deliveryType = row.DeliveryType === 'online' ? 'online' : 'in_person';
+  const platform = row.Platform === 'corporate' ? 'corporate' : row.Platform ? 'other' : null;
   return CourseSchema.parse({
     id: row.CourseID,
     seriesId: null,
@@ -163,16 +211,26 @@ function mapCourse(
     type: row.IsConference ? 'conference' : row.CourseType === 0 ? 'technical' : 'enrichment',
     discipline: row.Discipline,
     status: row.isTentative ? 'tentative' : 'scheduled',
-    deliveryType: 'in_person',
-    platform: null,
-    platformUrl: null,
+    deliveryType,
+    platform: deliveryType === 'online' ? platform : null,
+    platformUrl: deliveryType === 'online' ? row.PlatformUrl : null,
+    location: deliveryType === 'online' ? null : row.Location,
     isMandatory: Boolean(row.IsMandatory),
     isInternal: Boolean(row.IsIn),
     totalHours: Number(row.TotalHours),
     sessions,
     price: Number(row.Price),
-    capacity: null,
-    selfRegistration: 'none',
+    // Online courses are always unlimited; ignore any stray capacity value.
+    capacity: deliveryType === 'online' ? null : row.Capacity,
+    perManagerLimit: row.PerManagerLimit,
+    excludeSubcontractors: Boolean(row.ExcludeSubcontractors),
+    excludeStudents: Boolean(row.ExcludeStudents),
+    restrictedTeams,
+    selfRegistration: parseSelfReg(row.SelfRegistration),
     ownerId: null,
   });
+}
+
+function parseSelfReg(value: string): 'none' | 'open' | 'approval_required' {
+  return value === 'open' || value === 'approval_required' ? value : 'none';
 }

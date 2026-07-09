@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   type Employee,
   Employee as EmployeeSchema,
+  type EmployeeSummary,
+  EmployeeSummary as EmployeeSummarySchema,
   type PriorParticipation,
   PriorParticipation as PriorParticipationSchema,
   type Role,
@@ -50,6 +52,8 @@ const EMPLOYEE_SELECT = `
   FROM emma.users u
   LEFT JOIN coma.user_role r ON r.sircID = u.sircID`;
 
+const EMPLOYEE_SELECT_WHERE = `${EMPLOYEE_SELECT} WHERE`;
+
 /** Reads employees from `emma.users` (read-only) and role overrides from `coma.user_role`. */
 @Injectable()
 export class EmployeesRepository {
@@ -84,6 +88,31 @@ export class EmployeesRepository {
       [id],
     );
     return Number(rows[0]?.c ?? 0) > 0;
+  }
+
+  /** Every working employee in the caller's org subtree, as roster candidates (requirement #7). */
+  async subtreeSummaries(managerId: string): Promise<EmployeeSummary[]> {
+    const rows = await this.db.query<EmployeeRow>(
+      `WITH RECURSIVE sub AS (
+         SELECT sircID FROM emma.users WHERE managerSircID = ? AND status = 'working'
+         UNION
+         SELECT u.sircID FROM emma.users u
+           INNER JOIN sub s ON u.managerSircID = s.sircID
+         WHERE u.status = 'working'
+       )
+       ${EMPLOYEE_SELECT_WHERE} u.sircID IN (SELECT sircID FROM sub)
+       ORDER BY u.firstName, u.lastName`,
+      [managerId],
+    );
+    return rows.map(mapSummary);
+  }
+
+  /** All working employees, as roster candidates (HR scope). */
+  async allWorkingSummaries(): Promise<EmployeeSummary[]> {
+    const rows = await this.db.query<EmployeeRow>(
+      `${EMPLOYEE_SELECT_WHERE} u.status = 'working' ORDER BY u.firstName, u.lastName`,
+    );
+    return rows.map(mapSummary);
   }
 
   async list(filter: { query?: string; managerId?: string }): Promise<Employee[]> {
@@ -140,6 +169,19 @@ export class EmployeesRepository {
 function resolveRole(row: EmployeeRow): Role {
   if (row.roleOverride) return row.roleOverride as Role;
   return roleFromLegacyAuthorization(row.authorizationIdCOMA);
+}
+
+function mapSummary(row: EmployeeRow): EmployeeSummary {
+  return EmployeeSummarySchema.parse({
+    id: String(row.sircID),
+    fullName: `${row.firstName} ${row.lastName}`,
+    email: row.email,
+    department: row.teamName ? row.teamName.replace(/^\((.*)\)$/, '$1') : null,
+    title: row.workTitle,
+    managerId: row.managerSircID != null ? String(row.managerSircID) : null,
+    category: row.category,
+    status: row.status,
+  });
 }
 
 function mapEmployee(row: EmployeeRow): Employee {

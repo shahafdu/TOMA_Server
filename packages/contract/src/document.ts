@@ -6,9 +6,12 @@ import {
 import { z } from 'zod';
 import {
   Attendance,
+  AttendanceReport,
   BudgetReport,
   ComplianceReport,
   Course,
+  CourseAvailability,
+  CourseRoster,
   CourseSeries,
   CourseSession,
   CreateCourseInput,
@@ -77,6 +80,9 @@ registry.register('NotificationRule', NotificationRule);
 registry.register('MyTraining', MyTraining);
 registry.register('ComplianceReport', ComplianceReport);
 registry.register('BudgetReport', BudgetReport);
+registry.register('AttendanceReport', AttendanceReport);
+registry.register('CourseAvailability', CourseAvailability);
+registry.register('CourseRoster', CourseRoster);
 
 function page<T extends z.ZodTypeAny>(name: string, item: T) {
   return registry.register(
@@ -245,6 +251,32 @@ registry.registerPath({
 // ---- Registrations ---------------------------------------------------------------------------
 
 registry.registerPath({
+  method: 'get',
+  path: '/courses/{id}/roster',
+  tags: ['registrations'],
+  summary:
+    "Registration roster for the caller's scope: seat availability + eligibility per person (req. #7/#8/#9)",
+  request: { params: z.object({ id: z.coerce.number().int() }) },
+  responses: {
+    200: { description: 'Roster with availability & eligibility', content: json(CourseRoster) },
+    403: problem('Not permitted for this role'),
+    404: problem('No such course'),
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/courses/{id}/availability',
+  tags: ['registrations'],
+  summary: 'Seat accounting for a course (total & remaining seats; null = unlimited)',
+  request: { params: z.object({ id: z.coerce.number().int() }) },
+  responses: {
+    200: { description: 'Seat availability', content: json(CourseAvailability) },
+    404: problem('No such course'),
+  },
+});
+
+registry.registerPath({
   method: 'post',
   path: '/courses/{id}/registrations',
   tags: ['registrations'],
@@ -282,19 +314,18 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'patch',
-  path: '/registrations/{id}',
+  path: '/courses/{id}/registrations/{employeeId}',
   tags: ['registrations'],
-  summary: 'Approve / decline / cancel / waitlist a registration',
+  summary: "Approve / decline / cancel a person's registration on a course (requirement #7)",
   request: {
-    params: z.object({ id: z.coerce.number().int() }),
-    body: {
-      content: json(
-        z.object({ action: z.enum(['approve', 'decline', 'cancel', 'waitlist', 'promote']) }),
-      ),
-    },
+    params: z.object({ id: z.coerce.number().int(), employeeId: EmployeeId }),
+    body: { content: json(z.object({ action: z.enum(['approve', 'decline', 'cancel']) })) },
   },
   responses: {
-    200: { description: 'Updated registration', content: json(Registration) },
+    200: {
+      description: 'The new registration status',
+      content: json(z.object({ status: z.string() })),
+    },
     404: problem('No such registration'),
   },
 });
@@ -386,6 +417,24 @@ registry.registerPath({
   request: { query: z.object({ year: z.coerce.number().int().optional() }) },
   responses: {
     200: { description: 'Budget report', content: json(BudgetReport) },
+    403: problem('Not permitted for this role'),
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/reports/attendance',
+  tags: ['reports'],
+  summary:
+    'Attendance rollup — did registered people attend? scope=team (org subtree) or organization (HR)',
+  request: {
+    query: z.object({
+      scope: z.enum(['team', 'organization']).optional(),
+      year: z.coerce.number().int().optional(),
+    }),
+  },
+  responses: {
+    200: { description: 'Attendance report', content: json(AttendanceReport) },
     403: problem('Not permitted for this role'),
   },
 });

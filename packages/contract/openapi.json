@@ -237,6 +237,12 @@
             ],
             "minLength": 1
           },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -253,6 +259,7 @@
           "department",
           "title",
           "managerId",
+          "category",
           "status"
         ]
       },
@@ -386,6 +393,12 @@
             ],
             "format": "uri"
           },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "isMandatory": {
             "type": "boolean"
           },
@@ -431,6 +444,29 @@
             ],
             "exclusiveMinimum": 0
           },
+          "perManagerLimit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "default": null
+          },
+          "excludeSubcontractors": {
+            "type": "boolean",
+            "default": false
+          },
+          "excludeStudents": {
+            "type": "boolean",
+            "default": false
+          },
+          "restrictedTeams": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
           "selfRegistration": {
             "type": "string",
             "enum": [
@@ -461,6 +497,7 @@
           "deliveryType",
           "platform",
           "platformUrl",
+          "location",
           "isMandatory",
           "isInternal",
           "totalHours",
@@ -1260,6 +1297,330 @@
           "byDiscipline"
         ]
       },
+      "AttendanceReport": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "organization",
+              "team"
+            ]
+          },
+          "totalRegistrations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attendedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "employeeId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "employeeName": {
+                  "type": "string"
+                },
+                "department": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "courseId": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "courseTitle": {
+                  "type": "string"
+                },
+                "discipline": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "registrationStatus": {
+                  "type": "string"
+                },
+                "attended": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "employeeId",
+                "employeeName",
+                "department",
+                "courseId",
+                "courseTitle",
+                "discipline",
+                "registrationStatus",
+                "attended"
+              ]
+            }
+          }
+        },
+        "required": [
+          "year",
+          "scope",
+          "totalRegistrations",
+          "attendedCount",
+          "entries"
+        ]
+      },
+      "CourseAvailability": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "capacity": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "registered": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "seatsLeft": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "unlimited": {
+            "type": "boolean"
+          },
+          "perManagerLimit": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "myStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "invited",
+              "pending_approval",
+              "registered",
+              "waitlisted",
+              "declined",
+              "cancelled"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "courseId",
+          "capacity",
+          "registered",
+          "pending",
+          "seatsLeft",
+          "unlimited",
+          "perManagerLimit"
+        ]
+      },
+      "CourseRoster": {
+        "type": "object",
+        "properties": {
+          "availability": {
+            "type": "object",
+            "properties": {
+              "courseId": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "capacity": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "registered": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "pending": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "seatsLeft": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "unlimited": {
+                "type": "boolean"
+              },
+              "perManagerLimit": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "myStatus": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "invited",
+                  "pending_approval",
+                  "registered",
+                  "waitlisted",
+                  "declined",
+                  "cancelled"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "courseId",
+              "capacity",
+              "registered",
+              "pending",
+              "seatsLeft",
+              "unlimited",
+              "perManagerLimit"
+            ]
+          },
+          "managerSeatsUsed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "managerSeatsLeft": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "employee": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "fullName": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "email"
+                    },
+                    "department": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "managerId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    },
+                    "category": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "working",
+                        "left",
+                        "deleted"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "fullName",
+                    "email",
+                    "department",
+                    "title",
+                    "managerId",
+                    "category",
+                    "status"
+                  ]
+                },
+                "status": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "invited",
+                    "pending_approval",
+                    "registered",
+                    "waitlisted",
+                    "declined",
+                    "cancelled"
+                  ]
+                },
+                "eligible": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "employee",
+                "status",
+                "eligible",
+                "reason"
+              ]
+            }
+          }
+        },
+        "required": [
+          "availability",
+          "managerSeatsUsed",
+          "managerSeatsLeft",
+          "entries"
+        ]
+      },
       "EmployeePage": {
         "type": "object",
         "properties": {
@@ -1301,6 +1662,12 @@
                   ],
                   "minLength": 1
                 },
+                "category": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "status": {
                   "type": "string",
                   "enum": [
@@ -1317,6 +1684,7 @@
                 "department",
                 "title",
                 "managerId",
+                "category",
                 "status"
               ]
             }
@@ -1436,6 +1804,12 @@
                   ],
                   "format": "uri"
                 },
+                "location": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "isMandatory": {
                   "type": "boolean"
                 },
@@ -1481,6 +1855,29 @@
                   ],
                   "exclusiveMinimum": 0
                 },
+                "perManagerLimit": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "exclusiveMinimum": 0,
+                  "default": null
+                },
+                "excludeSubcontractors": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "excludeStudents": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "restrictedTeams": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                },
                 "selfRegistration": {
                   "type": "string",
                   "enum": [
@@ -1511,6 +1908,7 @@
                 "deliveryType",
                 "platform",
                 "platformUrl",
+                "location",
                 "isMandatory",
                 "isInternal",
                 "totalHours",
@@ -2047,6 +2445,13 @@
                     ],
                     "format": "uri"
                   },
+                  "location": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
                   "isMandatory": {
                     "type": "boolean",
                     "default": false
@@ -2068,6 +2473,28 @@
                       "null"
                     ],
                     "exclusiveMinimum": 0
+                  },
+                  "perManagerLimit": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "exclusiveMinimum": 0
+                  },
+                  "excludeSubcontractors": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "excludeStudents": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "restrictedTeams": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
                   },
                   "selfRegistration": {
                     "type": "string",
@@ -2184,6 +2611,12 @@
                       ],
                       "format": "uri"
                     },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "isMandatory": {
                       "type": "boolean"
                     },
@@ -2229,6 +2662,29 @@
                       ],
                       "exclusiveMinimum": 0
                     },
+                    "perManagerLimit": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0,
+                      "default": null
+                    },
+                    "excludeSubcontractors": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "excludeStudents": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "restrictedTeams": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
                     "selfRegistration": {
                       "type": "string",
                       "enum": [
@@ -2259,6 +2715,7 @@
                     "deliveryType",
                     "platform",
                     "platformUrl",
+                    "location",
                     "isMandatory",
                     "isInternal",
                     "totalHours",
@@ -2407,6 +2864,12 @@
                       ],
                       "format": "uri"
                     },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "isMandatory": {
                       "type": "boolean"
                     },
@@ -2452,6 +2915,29 @@
                       ],
                       "exclusiveMinimum": 0
                     },
+                    "perManagerLimit": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0,
+                      "default": null
+                    },
+                    "excludeSubcontractors": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "excludeStudents": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "restrictedTeams": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
                     "selfRegistration": {
                       "type": "string",
                       "enum": [
@@ -2482,6 +2968,7 @@
                     "deliveryType",
                     "platform",
                     "platformUrl",
+                    "location",
                     "isMandatory",
                     "isInternal",
                     "totalHours",
@@ -2606,6 +3093,13 @@
                     ],
                     "format": "uri"
                   },
+                  "location": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
                   "isMandatory": {
                     "type": "boolean",
                     "default": false
@@ -2627,6 +3121,28 @@
                       "null"
                     ],
                     "exclusiveMinimum": 0
+                  },
+                  "perManagerLimit": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "exclusiveMinimum": 0
+                  },
+                  "excludeSubcontractors": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "excludeStudents": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "restrictedTeams": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
                   },
                   "selfRegistration": {
                     "type": "string",
@@ -2748,6 +3264,12 @@
                       ],
                       "format": "uri"
                     },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "isMandatory": {
                       "type": "boolean"
                     },
@@ -2793,6 +3315,29 @@
                       ],
                       "exclusiveMinimum": 0
                     },
+                    "perManagerLimit": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "exclusiveMinimum": 0,
+                      "default": null
+                    },
+                    "excludeSubcontractors": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "excludeStudents": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "restrictedTeams": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
                     "selfRegistration": {
                       "type": "string",
                       "enum": [
@@ -2823,6 +3368,7 @@
                     "deliveryType",
                     "platform",
                     "platformUrl",
+                    "location",
                     "isMandatory",
                     "isInternal",
                     "totalHours",
@@ -2924,6 +3470,340 @@
                       "lecturer"
                     ]
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/roster": {
+      "get": {
+        "tags": [
+          "registrations"
+        ],
+        "summary": "Registration roster for the caller's scope: seat availability + eligibility per person (req. #7/#8/#9)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Roster with availability & eligibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "availability": {
+                      "type": "object",
+                      "properties": {
+                        "courseId": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "capacity": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "registered": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "pending": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "seatsLeft": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "unlimited": {
+                          "type": "boolean"
+                        },
+                        "perManagerLimit": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "myStatus": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "enum": [
+                            "invited",
+                            "pending_approval",
+                            "registered",
+                            "waitlisted",
+                            "declined",
+                            "cancelled"
+                          ],
+                          "default": null
+                        }
+                      },
+                      "required": [
+                        "courseId",
+                        "capacity",
+                        "registered",
+                        "pending",
+                        "seatsLeft",
+                        "unlimited",
+                        "perManagerLimit"
+                      ]
+                    },
+                    "managerSeatsUsed": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "managerSeatsLeft": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "employee": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "fullName": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "email"
+                              },
+                              "department": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "title": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "managerId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "minLength": 1
+                              },
+                              "category": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "working",
+                                  "left",
+                                  "deleted"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "fullName",
+                              "email",
+                              "department",
+                              "title",
+                              "managerId",
+                              "category",
+                              "status"
+                            ]
+                          },
+                          "status": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "enum": [
+                              "invited",
+                              "pending_approval",
+                              "registered",
+                              "waitlisted",
+                              "declined",
+                              "cancelled"
+                            ]
+                          },
+                          "eligible": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "employee",
+                          "status",
+                          "eligible",
+                          "reason"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "availability",
+                    "managerSeatsUsed",
+                    "managerSeatsLeft",
+                    "entries"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such course",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{id}/availability": {
+      "get": {
+        "tags": [
+          "registrations"
+        ],
+        "summary": "Seat accounting for a course (total & remaining seats; null = unlimited)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Seat availability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "courseId": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "capacity": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "registered": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "pending": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "seatsLeft": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "unlimited": {
+                      "type": "boolean"
+                    },
+                    "perManagerLimit": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "myStatus": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "invited",
+                        "pending_approval",
+                        "registered",
+                        "waitlisted",
+                        "declined",
+                        "cancelled"
+                      ],
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "courseId",
+                    "capacity",
+                    "registered",
+                    "pending",
+                    "seatsLeft",
+                    "unlimited",
+                    "perManagerLimit"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such course",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3365,12 +4245,12 @@
         }
       }
     },
-    "/registrations/{id}": {
+    "/courses/{id}/registrations/{employeeId}": {
       "patch": {
         "tags": [
           "registrations"
         ],
-        "summary": "Approve / decline / cancel / waitlist a registration",
+        "summary": "Approve / decline / cancel a person's registration on a course (requirement #7)",
         "parameters": [
           {
             "schema": {
@@ -3381,6 +4261,15 @@
             },
             "required": false,
             "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "employeeId",
             "in": "path"
           }
         ],
@@ -3395,9 +4284,7 @@
                     "enum": [
                       "approve",
                       "decline",
-                      "cancel",
-                      "waitlist",
-                      "promote"
+                      "cancel"
                     ]
                   }
                 },
@@ -3410,76 +4297,18 @@
         },
         "responses": {
           "200": {
-            "description": "Updated registration",
+            "description": "The new registration status",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    },
-                    "courseId": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    },
-                    "employeeId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
                     "status": {
-                      "type": "string",
-                      "enum": [
-                        "invited",
-                        "pending_approval",
-                        "registered",
-                        "waitlisted",
-                        "declined",
-                        "cancelled"
-                      ]
-                    },
-                    "source": {
-                      "type": "string",
-                      "enum": [
-                        "hr",
-                        "manager",
-                        "self"
-                      ]
-                    },
-                    "requestedBy": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "minLength": 1
-                    },
-                    "approvedBy": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "minLength": 1
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "updatedAt": {
-                      "type": "string",
-                      "format": "date-time"
+                      "type": "string"
                     }
                   },
                   "required": [
-                    "id",
-                    "courseId",
-                    "employeeId",
-                    "status",
-                    "source",
-                    "requestedBy",
-                    "approvedBy",
-                    "createdAt",
-                    "updatedAt"
+                    "status"
                   ]
                 }
               }
@@ -4655,6 +5484,138 @@
                     "budget",
                     "committed",
                     "byDiscipline"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/attendance": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Attendance rollup — did registered people attend? scope=team (org subtree) or organization (HR)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "team",
+                "organization"
+              ]
+            },
+            "required": false,
+            "name": "scope",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "year",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attendance report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "year": {
+                      "type": "integer"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "organization",
+                        "team"
+                      ]
+                    },
+                    "totalRegistrations": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "attendedCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "employeeId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "employeeName": {
+                            "type": "string"
+                          },
+                          "department": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "courseId": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "courseTitle": {
+                            "type": "string"
+                          },
+                          "discipline": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "registrationStatus": {
+                            "type": "string"
+                          },
+                          "attended": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "employeeId",
+                          "employeeName",
+                          "department",
+                          "courseId",
+                          "courseTitle",
+                          "discipline",
+                          "registrationStatus",
+                          "attended"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "year",
+                    "scope",
+                    "totalRegistrations",
+                    "attendedCount",
+                    "entries"
                   ]
                 }
               }

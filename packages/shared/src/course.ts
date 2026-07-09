@@ -54,7 +54,10 @@ export const Course = z
     status: CourseStatus,
     deliveryType: DeliveryType,
     platform: Platform.nullable(),
+    /** Online courses: the connection link. In-person courses: null. */
     platformUrl: z.string().url().nullable(),
+    /** In-person courses: the room or external venue. Online courses: null. */
+    location: z.string().nullable(),
     isMandatory: z.boolean(),
     isInternal: z.boolean(),
     /** Total training hours across all sessions. */
@@ -65,18 +68,30 @@ export const Course = z
       .default([]),
     /** Budget-sensitive: masked for non-HR roles (plan §2.4). May be absent from the DTO. */
     price: z.number().nonnegative().nullable().optional(),
+    /** Total seat cap. `null` = unlimited (always the case for online courses). */
     capacity: z.number().int().positive().nullable(),
+    /** Max seats a single manager may fill for this course (`null` = no per-manager cap). */
+    perManagerLimit: z.number().int().positive().nullable().default(null),
+    /** Registration constraints (requirement #9). */
+    excludeSubcontractors: z.boolean().default(false),
+    excludeStudents: z.boolean().default(false),
+    /** If non-empty, only these teams/groups may register (requirement #8). */
+    restrictedTeams: z.array(z.string()).default([]),
     selfRegistration: SelfRegistrationPolicy,
     ownerId: EmployeeId.nullable(),
   })
   .refine(
     (c) => c.deliveryType === 'online' || (c.platform === null && c.platformUrl === null),
     'platform/platformUrl are only valid for online courses',
+  )
+  .refine(
+    (c) => c.deliveryType !== 'online' || c.capacity === null,
+    'online courses have unlimited seats (capacity must be null)',
   );
 export type Course = z.infer<typeof Course>;
 
-/** Input for creating a course. HR creates directly; a manager create is forced to `requested`. */
-export const CreateCourseInput = z.object({
+/** Shared field set for course create/update (refinements applied per-operation below). */
+const CourseInputBase = z.object({
   seriesId: CourseSeriesId.nullable().optional(),
   title: z.string().min(1),
   year: Year,
@@ -88,16 +103,37 @@ export const CreateCourseInput = z.object({
   totalHours: z.number().nonnegative().default(0),
   deliveryType: DeliveryType,
   platform: Platform.nullable().optional(),
+  /** Required for online courses (the connection link); must be null for in-person. */
   platformUrl: z.string().url().nullable().optional(),
+  /** Required for in-person courses (room or external venue); must be null for online. */
+  location: z.string().min(1).nullable().optional(),
   isMandatory: z.boolean().default(false),
   isInternal: z.boolean().default(true),
   price: z.number().nonnegative().nullable().optional(),
   capacity: z.number().int().positive().nullable().optional(),
+  perManagerLimit: z.number().int().positive().nullable().optional(),
+  excludeSubcontractors: z.boolean().default(false),
+  excludeStudents: z.boolean().default(false),
+  restrictedTeams: z.array(z.string()).default([]),
   selfRegistration: SelfRegistrationPolicy.default('none'),
 });
+
+/** Input for creating a course. HR creates directly; a manager create is forced to `requested`. */
+export const CreateCourseInput = CourseInputBase.refine(
+  (c) => c.deliveryType !== 'online' || !!c.platformUrl,
+  { message: 'online courses need a connection link (platformUrl)', path: ['platformUrl'] },
+)
+  .refine((c) => c.deliveryType !== 'in_person' || !!c.location, {
+    message: 'in-person courses need a room or external location',
+    path: ['location'],
+  })
+  .refine((c) => c.deliveryType !== 'online' || c.capacity == null, {
+    message: 'online courses have unlimited seats (leave capacity empty)',
+    path: ['capacity'],
+  });
 export type CreateCourseInput = z.infer<typeof CreateCourseInput>;
 
-export const UpdateCourseInput = CreateCourseInput.partial().extend({
+export const UpdateCourseInput = CourseInputBase.partial().extend({
   status: CourseStatus.optional(),
 });
 export type UpdateCourseInput = z.infer<typeof UpdateCourseInput>;
