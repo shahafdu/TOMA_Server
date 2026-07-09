@@ -4,13 +4,11 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    // Legacy apps keep their own (Angular/tslint) tooling; generated + build output excluded.
+    // Generated + build output excluded from linting.
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
       '**/coverage/**',
-      'legacy-client/**',
-      'backend/**',
       '**/*.json',
       'packages/contract/openapi.json',
     ],

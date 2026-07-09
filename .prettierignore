@@ -2,8 +2,6 @@ node_modules/
 dist/
 out/
 coverage/
-legacy-client/
-backend/
 package-lock.json
 
 # Generated — gated by `npm run contract:check`, not Prettier
