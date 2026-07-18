@@ -6,6 +6,7 @@ import SchoolIcon from '@mui/icons-material/SchoolOutlined';
 import VerifiedIcon from '@mui/icons-material/VerifiedOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useMemo, useState } from 'react';
@@ -15,16 +16,24 @@ import {
   useCompliance,
   useCourses,
   useEmployees,
+  useGoals,
   useMe,
   useMyTraining,
+  useTeamDevelopment,
 } from '../api/queries.js';
 import { CourseCard } from '../components/CourseCard.js';
 import {
   BudgetPanel,
   CompliancePanel,
   DisciplineBreakdown,
+  GoalsPanel,
   MyTrainingCard,
 } from '../components/dashboard.js';
+import {
+  GoalEditor,
+  PeopleTrainingTable,
+  TeamDevelopmentPanel,
+} from '../components/development.js';
 import { JustificationsPanel } from '../components/JustificationsPanel.js';
 import { EmptyState, Loading, PageHeader, StatCard } from '../components/common.js';
 import { greeting } from '../ui/format.js';
@@ -70,6 +79,14 @@ export function DashboardPage() {
     canCompany && active === 'company',
   );
   const budget = useBudget(undefined, canBudget && active === 'company');
+  const teamDevelopment = useTeamDevelopment('team', undefined, hasTeam && active === 'team');
+  const companyDevelopment = useTeamDevelopment(
+    'organization',
+    undefined,
+    canCompany && active === 'company',
+  );
+  const goals = useGoals(undefined, canCompany && active === 'company');
+  const currentYear = new Date().getFullYear();
 
   const firstName = me.data?.fullName.split(' ')[0] ?? '';
   const list = courses.data ?? [];
@@ -133,7 +150,22 @@ export function DashboardPage() {
           {myTraining.isLoading ? (
             <Loading />
           ) : (
-            myTraining.data && <MyTrainingCard data={myTraining.data} />
+            myTraining.data && (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 2.5,
+                  gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+                  alignItems: 'stretch',
+                }}
+              >
+                <MyTrainingCard data={myTraining.data} />
+                <GoalsPanel
+                  byDiscipline={myTraining.data.byDiscipline}
+                  year={myTraining.data.year}
+                />
+              </Box>
+            )
           )}
 
           <Box sx={{ mt: 3 }}>
@@ -168,7 +200,22 @@ export function DashboardPage() {
             teamCompliance.data.totalPeople === 0 ? (
               <EmptyState message="No one reports to you in the system." />
             ) : (
-              <CompliancePanel report={teamCompliance.data} />
+              <Stack spacing={2.5}>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gap: 2.5,
+                    gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+                    alignItems: 'stretch',
+                  }}
+                >
+                  <CompliancePanel report={teamCompliance.data} />
+                  {teamDevelopment.data && <TeamDevelopmentPanel report={teamDevelopment.data} />}
+                </Box>
+                {teamDevelopment.data && (
+                  <PeopleTrainingTable members={teamDevelopment.data.members} />
+                )}
+              </Stack>
             )
           ) : null}
         </Box>
@@ -221,8 +268,24 @@ export function DashboardPage() {
             ) : (
               companyCompliance.data && <CompliancePanel report={companyCompliance.data} />
             )}
-            {disciplineCounts.length > 0 && <DisciplineBreakdown counts={disciplineCounts} />}
+            {companyDevelopment.data && <TeamDevelopmentPanel report={companyDevelopment.data} />}
           </Box>
+
+          {disciplineCounts.length > 0 && (
+            <Box sx={{ mb: 4 }}>
+              <DisciplineBreakdown counts={disciplineCounts} />
+            </Box>
+          )}
+
+          {goals.data && (
+            <Box sx={{ mb: 4 }}>
+              <GoalEditor year={currentYear} goals={goals.data} />
+            </Box>
+          )}
+
+          {companyDevelopment.data && (
+            <PeopleTrainingTable members={companyDevelopment.data.members} />
+          )}
         </Box>
       )}
     </Box>

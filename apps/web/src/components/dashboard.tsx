@@ -8,7 +8,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import type { BudgetReport, ComplianceReport, MyTraining } from '@toma/shared';
+import type { BudgetReport, ComplianceReport, DisciplineProgress, MyTraining } from '@toma/shared';
 import { DisciplineChip } from '../ui/chips.js';
 import { money } from '../ui/format.js';
 
@@ -216,6 +216,104 @@ export function BudgetPanel({ report }: { report: BudgetReport }) {
             </Stack>
           </Box>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Shared row: one discipline's actual hours vs its goal, as a labelled progress bar. */
+export function DisciplineProgressRow({ p }: { p: DisciplineProgress }) {
+  const hasGoal = p.goalHours > 0;
+  const pct = hasGoal ? Math.min(100, Math.round((p.actualHours / p.goalHours) * 100)) : 0;
+  return (
+    <Box>
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 0.5 }}>
+        <Box sx={{ width: 180, flexShrink: 0 }}>
+          <DisciplineChip discipline={p.discipline} />
+        </Box>
+        <Box sx={{ flexGrow: 1 }}>
+          {hasGoal ? (
+            <LinearProgress
+              variant="determinate"
+              value={pct}
+              color={p.metGoal ? 'success' : pct >= 60 ? 'warning' : 'primary'}
+              sx={{ height: 8, borderRadius: 4 }}
+            />
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              No goal set
+            </Typography>
+          )}
+        </Box>
+        <Stack
+          direction="row"
+          spacing={0.5}
+          alignItems="center"
+          sx={{ width: 96, justifyContent: 'flex-end' }}
+        >
+          <Typography
+            variant="body2"
+            color={p.metGoal && hasGoal ? 'success.main' : 'text.primary'}
+          >
+            {p.actualHours}h{hasGoal ? ` / ${p.goalHours}h` : ''}
+          </Typography>
+          {hasGoal && p.metGoal && <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />}
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+/** Personal development goals: per-discipline actual hours vs the yearly goal (requirement). */
+export function GoalsPanel({
+  byDiscipline,
+  year,
+}: {
+  byDiscipline: DisciplineProgress[];
+  year: number;
+}) {
+  const withGoals = byDiscipline.filter((d) => d.goalHours > 0);
+  const extras = byDiscipline.filter((d) => d.goalHours === 0 && d.actualHours > 0);
+  const met = withGoals.filter((d) => d.metGoal).length;
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent sx={{ p: 3 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box>
+            <Typography variant="h6">Development goals</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {year} · hours by discipline vs. goal
+            </Typography>
+          </Box>
+          {withGoals.length > 0 && (
+            <Typography
+              variant="h5"
+              color={met === withGoals.length ? 'success.main' : 'text.primary'}
+            >
+              {met}/{withGoals.length}
+            </Typography>
+          )}
+        </Stack>
+        <Stack spacing={2} sx={{ mt: 2 }}>
+          {withGoals.length === 0 && extras.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              No discipline goals set for {year} yet.
+            </Typography>
+          )}
+          {withGoals.map((d) => (
+            <DisciplineProgressRow key={d.discipline} p={d} />
+          ))}
+          {extras.length > 0 && (
+            <>
+              <Typography variant="caption" color="text.secondary" sx={{ pt: 1 }}>
+                Other training completed
+              </Typography>
+              {extras.map((d) => (
+                <DisciplineProgressRow key={d.discipline} p={d} />
+              ))}
+            </>
+          )}
+        </Stack>
       </CardContent>
     </Card>
   );

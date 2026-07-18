@@ -1207,6 +1207,34 @@
                 "completed"
               ]
             }
+          },
+          "byDiscipline": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "discipline": {
+                  "type": "string"
+                },
+                "actualHours": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "goalHours": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "metGoal": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "discipline",
+                "actualHours",
+                "goalHours",
+                "metGoal"
+              ]
+            }
           }
         },
         "required": [
@@ -1215,7 +1243,8 @@
           "hours",
           "targetHours",
           "registeredCount",
-          "required"
+          "required",
+          "byDiscipline"
         ]
       },
       "ComplianceReport": {
@@ -1410,6 +1439,182 @@
           "totalRegistrations",
           "attendedCount",
           "entries"
+        ]
+      },
+      "TeamDevelopmentReport": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "organization",
+              "team"
+            ]
+          },
+          "totalPeople": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "peopleWithElectives": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "electiveAttendances": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "disciplines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "discipline": {
+                  "type": "string"
+                },
+                "goalHours": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "avgHours": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "peopleMet": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "totalPeople": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "discipline",
+                "goalHours",
+                "avgHours",
+                "peopleMet",
+                "totalPeople"
+              ]
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "employeeId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "employeeName": {
+                  "type": "string"
+                },
+                "department": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "managerId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "totalHours": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "mandatoryDone": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "mandatoryTotal": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "electiveCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "byDiscipline": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "discipline": {
+                        "type": "string"
+                      },
+                      "actualHours": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "goalHours": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "metGoal": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "discipline",
+                      "actualHours",
+                      "goalHours",
+                      "metGoal"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "employeeId",
+                "employeeName",
+                "department",
+                "managerId",
+                "totalHours",
+                "mandatoryDone",
+                "mandatoryTotal",
+                "electiveCount",
+                "byDiscipline"
+              ]
+            }
+          }
+        },
+        "required": [
+          "year",
+          "scope",
+          "totalPeople",
+          "peopleWithElectives",
+          "electiveAttendances",
+          "disciplines",
+          "members"
+        ]
+      },
+      "TrainingGoal": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "discipline": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "targetHours": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9999
+          }
+        },
+        "required": [
+          "year",
+          "discipline",
+          "targetHours"
         ]
       },
       "CourseAvailability": {
@@ -6274,12 +6479,217 @@
         }
       }
     },
+    "/reports/team-development": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Development view: non-mandatory attendance + per-discipline goal attainment + per-person roster. scope=team (org subtree) or organization (HR)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "team",
+                "organization"
+              ]
+            },
+            "required": false,
+            "name": "scope",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "year",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Team development report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "year": {
+                      "type": "integer"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "organization",
+                        "team"
+                      ]
+                    },
+                    "totalPeople": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "peopleWithElectives": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "electiveAttendances": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "disciplines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "discipline": {
+                            "type": "string"
+                          },
+                          "goalHours": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "avgHours": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "peopleMet": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "totalPeople": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "discipline",
+                          "goalHours",
+                          "avgHours",
+                          "peopleMet",
+                          "totalPeople"
+                        ]
+                      }
+                    },
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "employeeId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "employeeName": {
+                            "type": "string"
+                          },
+                          "department": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "managerId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "minLength": 1
+                          },
+                          "totalHours": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "mandatoryDone": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "mandatoryTotal": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "electiveCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "byDiscipline": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "discipline": {
+                                  "type": "string"
+                                },
+                                "actualHours": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "goalHours": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "metGoal": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "discipline",
+                                "actualHours",
+                                "goalHours",
+                                "metGoal"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "employeeId",
+                          "employeeName",
+                          "department",
+                          "managerId",
+                          "totalHours",
+                          "mandatoryDone",
+                          "mandatoryTotal",
+                          "electiveCount",
+                          "byDiscipline"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "year",
+                    "scope",
+                    "totalPeople",
+                    "peopleWithElectives",
+                    "electiveAttendances",
+                    "disciplines",
+                    "members"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/training": {
       "get": {
         "tags": [
           "reports"
         ],
-        "summary": "The signed-in user's personal training summary (hours + required courses)",
+        "summary": "The signed-in user's personal training summary (hours + required courses + goals)",
         "parameters": [
           {
             "schema": {
@@ -6349,6 +6759,34 @@
                           "completed"
                         ]
                       }
+                    },
+                    "byDiscipline": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "discipline": {
+                            "type": "string"
+                          },
+                          "actualHours": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "goalHours": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "metGoal": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "discipline",
+                          "actualHours",
+                          "goalHours",
+                          "metGoal"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -6357,7 +6795,8 @@
                     "hours",
                     "targetHours",
                     "registeredCount",
-                    "required"
+                    "required",
+                    "byDiscipline"
                   ]
                 }
               }
@@ -6365,6 +6804,173 @@
           },
           "401": {
             "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/goals": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Per-discipline yearly training-hour goals (readable by any authenticated user)",
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "year",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Goals for the year",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "year": {
+                        "type": "integer"
+                      },
+                      "discipline": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "targetHours": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 9999
+                      }
+                    },
+                    "required": [
+                      "year",
+                      "discipline",
+                      "targetHours"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Replace a year's per-discipline goals (HR/admin)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "year": {
+                    "type": "integer"
+                  },
+                  "goals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "discipline": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "targetHours": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 9999
+                        }
+                      },
+                      "required": [
+                        "discipline",
+                        "targetHours"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "year",
+                  "goals"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated goals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "year": {
+                        "type": "integer"
+                      },
+                      "discipline": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "targetHours": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 9999
+                      }
+                    },
+                    "required": [
+                      "year",
+                      "discipline",
+                      "targetHours"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted for this role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
             "content": {
               "application/json": {
                 "schema": {

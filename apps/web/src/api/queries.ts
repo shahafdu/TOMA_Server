@@ -99,6 +99,38 @@ export function useAttendance(
   });
 }
 
+export function useTeamDevelopment(
+  scope: 'team' | 'organization',
+  year: number = CURRENT_YEAR,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['reports', 'development', scope, year],
+    queryFn: () => api.teamDevelopment(scope, year),
+    enabled,
+  });
+}
+
+export function useGoals(year: number = CURRENT_YEAR, enabled = true) {
+  return useQuery({
+    queryKey: ['goals', year],
+    queryFn: () => api.goals(year),
+    enabled,
+  });
+}
+
+export function useSetGoals(year: number = CURRENT_YEAR) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (goals: { discipline: string; targetHours: number }[]) => api.setGoals(year, goals),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['goals'] });
+      void qc.invalidateQueries({ queryKey: ['reports'] });
+      void qc.invalidateQueries({ queryKey: ['me', 'training'] });
+    },
+  });
+}
+
 export function useCourseAvailability(id: number, enabled = true) {
   return useQuery({
     queryKey: ['course', id, 'availability'],

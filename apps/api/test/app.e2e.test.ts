@@ -464,6 +464,77 @@ describe('TOMA API (e2e, against mockup DB)', () => {
     });
   });
 
+  describe('per-discipline training goals & development view', () => {
+    it('exposes seeded 2026 discipline goals to any authenticated user', async () => {
+      const { agent } = await login('carol');
+      const res = await agent.get('/api/v1/goals?year=2026');
+      expect(res.status).toBe(200);
+      const eng = res.body.find((g: { discipline: string }) => g.discipline === 'Engineering');
+      expect(eng.targetHours).toBe(16);
+    });
+
+    it('personal summary breaks actual hours down by discipline vs goal', async () => {
+      const { agent } = await login('carol');
+      const res = await agent.get('/api/v1/me/training?year=2026');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.byDiscipline)).toBe(true);
+      const sec = res.body.byDiscipline.find(
+        (d: { discipline: string }) => d.discipline === 'Security & Compliance',
+      );
+      expect(sec.goalHours).toBe(5);
+      expect(sec.actualHours).toBeGreaterThan(0); // Carol attended compliance courses
+    });
+
+    it("team development lists the manager's people with elective counts", async () => {
+      const { agent } = await login('bob');
+      const res = await agent.get('/api/v1/reports/team-development?scope=team&year=2026');
+      expect(res.status).toBe(200);
+      expect(res.body.scope).toBe('team');
+      expect(res.body.members.length).toBe(res.body.totalPeople);
+      expect(res.body.peopleWithElectives).toBeGreaterThan(0); // some attended non-mandatory courses
+      const anyMember = res.body.members[0];
+      expect(anyMember).toHaveProperty('electiveCount');
+      expect(anyMember).toHaveProperty('byDiscipline');
+    });
+
+    it('organization development is HR-only', async () => {
+      const bob = await login('bob');
+      expect(
+        (await bob.agent.get('/api/v1/reports/team-development?scope=organization')).status,
+      ).toBe(403);
+      const alice = await login('alice');
+      const res = await alice.agent.get(
+        '/api/v1/reports/team-development?scope=organization&year=2026',
+      );
+      expect(res.status).toBe(200);
+      expect(res.body.totalPeople).toBeGreaterThan(0);
+    });
+
+    it('only HR/admin may edit goals (isolated year)', async () => {
+      const carol = await login('carol');
+      expect(
+        (
+          await carol.agent
+            .put('/api/v1/goals')
+            .send({ year: 2099, goals: [{ discipline: 'Engineering', targetHours: 10 }] })
+        ).status,
+      ).toBe(403);
+
+      const { agent } = await login('alice');
+      const put = await agent.put('/api/v1/goals').send({
+        year: 2099,
+        goals: [
+          { discipline: 'Engineering', targetHours: 10 },
+          { discipline: 'Leadership', targetHours: 4 },
+        ],
+      });
+      expect(put.status).toBe(200);
+      expect(put.body).toHaveLength(2);
+      const check = await agent.get('/api/v1/goals?year=2099');
+      expect(check.body).toHaveLength(2);
+    });
+  });
+
   // The quarterly workflow mutates shared state, so it runs last and in sequence.
   describe('quarterly bidding → registration → lock → attendance lifecycle (S3)', () => {
     it('#1 shows the seeded Q4 bidding board with the manager’s own bids', async () => {

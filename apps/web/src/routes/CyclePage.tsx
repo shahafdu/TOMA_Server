@@ -1,5 +1,6 @@
 import CheckCircleIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelIcon from '@mui/icons-material/CancelOutlined';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LockIcon from '@mui/icons-material/LockOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -8,14 +9,21 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
+import Collapse from '@mui/material/Collapse';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { CycleCourse } from '@toma/shared';
 import { useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useCycleActions, useCycleBoard, useMe } from '../api/queries.js';
+import { useCourseBids, useCycleActions, useCycleBoard, useMe } from '../api/queries.js';
 import { DisciplineChip } from '../ui/chips.js';
 import { EmptyState, Loading, PageHeader } from '../components/common.js';
 
@@ -46,6 +54,7 @@ export function CyclePage() {
 
   const [bids, setBids] = useState<Record<number, string>>({});
   const [selected, setSelected] = useState<Record<number, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [regDeadline, setRegDeadline] = useState('');
 
   const cycle = board.data?.cycle;
@@ -136,8 +145,18 @@ export function CyclePage() {
                   selected={!!selected[c.courseId]}
                   onSelect={(v) => setSelected((s) => ({ ...s, [c.courseId]: v }))}
                   onDecide={(decision) => actions.decide.mutate({ courseId: c.courseId, decision })}
+                  expanded={!!expanded[c.courseId]}
+                  onToggleExpand={() =>
+                    setExpanded((e) => ({ ...e, [c.courseId]: !e[c.courseId] }))
+                  }
                 />
               </Stack>
+
+              {isHr && phase === 'bidding' && (
+                <Collapse in={!!expanded[c.courseId]} unmountOnExit>
+                  <BidBreakdown courseId={c.courseId} enabled={!!expanded[c.courseId]} />
+                </Collapse>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -221,6 +240,61 @@ function StateChip({ state }: { state: string }) {
   return <Chip size="small" variant="outlined" color={s.color} label={s.label} />;
 }
 
+/** HR-only: per-manager breakdown of who bid on a course and how many seats each requested. */
+function BidBreakdown({ courseId, enabled }: { courseId: number; enabled: boolean }) {
+  const bids = useCourseBids(courseId, enabled);
+
+  if (bids.isLoading) {
+    return (
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+        Loading bids…
+      </Typography>
+    );
+  }
+  const rows = bids.data ?? [];
+  if (rows.length === 0) {
+    return (
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+        No manager has bid on this course yet.
+      </Typography>
+    );
+  }
+
+  return (
+    <Box sx={{ mt: 1.5 }}>
+      <Divider sx={{ mb: 1 }} />
+      <Typography variant="overline" color="text.secondary">
+        Bids by manager
+      </Typography>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Manager</TableCell>
+            <TableCell align="right">Seats</TableCell>
+            <TableCell align="right">Last updated</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((b) => (
+            <TableRow key={b.managerId}>
+              <TableCell>{b.managerName}</TableCell>
+              <TableCell align="right">{b.seats}</TableCell>
+              <TableCell align="right">{formatDeadline(b.updatedAt)}</TableCell>
+            </TableRow>
+          ))}
+          <TableRow>
+            <TableCell sx={{ fontWeight: 700, borderBottom: 'none' }}>Total</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 700, borderBottom: 'none' }}>
+              {rows.reduce((sum, b) => sum + b.seats, 0)}
+            </TableCell>
+            <TableCell sx={{ borderBottom: 'none' }} />
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Box>
+  );
+}
+
 function CourseControls({
   course,
   phase,
@@ -231,6 +305,8 @@ function CourseControls({
   selected,
   onSelect,
   onDecide,
+  expanded,
+  onToggleExpand,
 }: {
   course: CycleCourse;
   phase: string;
@@ -241,13 +317,33 @@ function CourseControls({
   selected: boolean;
   onSelect: (v: boolean) => void;
   onDecide: (d: 'confirm' | 'cancel') => void;
+  expanded: boolean;
+  onToggleExpand: () => void;
 }) {
   // Bidding phase — managers bid seats; HR ticks courses to open.
   if (phase === 'bidding') {
     if (isHr) {
       return (
         <Stack direction="row" spacing={1} alignItems="center">
-          <Chip size="small" label={`${course.totalBidSeats} bid`} />
+          <Chip
+            size="small"
+            label={`${course.totalBidSeats} bid`}
+            onClick={onToggleExpand}
+            clickable
+          />
+          <IconButton
+            size="small"
+            onClick={onToggleExpand}
+            aria-label={expanded ? 'Hide bids by manager' : 'Show bids by manager'}
+            aria-expanded={expanded}
+          >
+            <ExpandMoreIcon
+              sx={{
+                transform: expanded ? 'rotate(180deg)' : 'none',
+                transition: 'transform 150ms',
+              }}
+            />
+          </IconButton>
           <Checkbox checked={selected} onChange={(e) => onSelect(e.target.checked)} />
         </Stack>
       );

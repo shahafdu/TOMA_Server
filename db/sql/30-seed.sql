@@ -141,6 +141,19 @@ INSERT INTO users (ID, EducationHours2024, EducationHours2025, EducationHours202
 INSERT INTO budget (yearlyBudget2024, yearlyBudget2025, yearlyBudget2026) VALUES (90000, 100000, 120000);
 INSERT INTO hours (yearlyTargetHours2024, yearlyTargetHours2025, yearlyTargetHours2026) VALUES (40, 40, 40);
 
+-- Per-discipline yearly goals (hours each employee should complete). Management levels are
+-- disciplines too (e.g. "Leadership"). Seeded for 2026; a couple of 2025 rows for history.
+INSERT INTO training_goal (Year, Discipline, TargetHours) VALUES
+  (2026, 'Engineering',            16),
+  (2026, 'Data & AI',              8),
+  (2026, 'Cloud & Infra',         12),
+  (2026, 'Security & Compliance',  5),
+  (2026, 'Leadership',             8),
+  (2026, 'Product & Design',       6),
+  (2026, 'Soft Skills',            4),
+  (2025, 'Engineering',           12),
+  (2025, 'Security & Compliance',  5);
+
 -- ================= Quarterly cycle seed (bidding/registration lifecycle) ======================
 
 -- A Q4 2026 cycle currently open for bidding (deadline in the near future).

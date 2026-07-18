@@ -7,6 +7,7 @@ import { EmployeesModule } from './employees/employees.module.js';
 import { CoursesModule } from './courses/courses.module.js';
 import { RegistrationsModule } from './registrations/registrations.module.js';
 import { ReportsModule } from './reports/reports.module.js';
+import { GoalsModule } from './goals/goals.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { CyclesModule } from './cycles/cycles.module.js';
 import { AttendanceModule } from './attendance/attendance.module.js';
@@ -28,6 +29,7 @@ import { OpenApiController } from './openapi/openapi.controller.js';
     CoursesModule,
     RegistrationsModule,
     ReportsModule,
+    GoalsModule,
     NotificationsModule,
     CyclesModule,
     AttendanceModule,

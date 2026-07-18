@@ -39,7 +39,10 @@ import {
   SetAttendanceInput,
   SetBidInput,
   SubmitJustificationInput,
+  SetTrainingGoalsInput,
+  TeamDevelopmentReport,
   TrainingCycle,
+  TrainingGoal,
   UpdateCourseInput,
   UpsertNotificationRuleInput,
 } from '@toma/shared';
@@ -94,6 +97,8 @@ registry.register('MyTraining', MyTraining);
 registry.register('ComplianceReport', ComplianceReport);
 registry.register('BudgetReport', BudgetReport);
 registry.register('AttendanceReport', AttendanceReport);
+registry.register('TeamDevelopmentReport', TeamDevelopmentReport);
+registry.register('TrainingGoal', TrainingGoal);
 registry.register('CourseAvailability', CourseAvailability);
 registry.register('CourseRoster', CourseRoster);
 registry.register('TrainingCycle', TrainingCycle);
@@ -460,13 +465,58 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'get',
+  path: '/reports/team-development',
+  tags: ['reports'],
+  summary:
+    'Development view: non-mandatory attendance + per-discipline goal attainment + per-person roster. scope=team (org subtree) or organization (HR)',
+  request: {
+    query: z.object({
+      scope: z.enum(['team', 'organization']).optional(),
+      year: z.coerce.number().int().optional(),
+    }),
+  },
+  responses: {
+    200: { description: 'Team development report', content: json(TeamDevelopmentReport) },
+    403: problem('Not permitted for this role'),
+  },
+});
+
+registry.registerPath({
+  method: 'get',
   path: '/me/training',
   tags: ['reports'],
-  summary: "The signed-in user's personal training summary (hours + required courses)",
+  summary: "The signed-in user's personal training summary (hours + required courses + goals)",
   request: { query: z.object({ year: z.coerce.number().int().optional() }) },
   responses: {
     200: { description: 'Personal training summary', content: json(MyTraining) },
     401: problem('Not authenticated'),
+  },
+});
+
+// ---- Training-hour goals ---------------------------------------------------------------------
+
+registry.registerPath({
+  method: 'get',
+  path: '/goals',
+  tags: ['reports'],
+  summary: 'Per-discipline yearly training-hour goals (readable by any authenticated user)',
+  request: { query: z.object({ year: z.coerce.number().int().optional() }) },
+  responses: {
+    200: { description: 'Goals for the year', content: json(z.array(TrainingGoal)) },
+    401: problem('Not authenticated'),
+  },
+});
+
+registry.registerPath({
+  method: 'put',
+  path: '/goals',
+  tags: ['reports'],
+  summary: "Replace a year's per-discipline goals (HR/admin)",
+  request: { body: { content: json(SetTrainingGoalsInput) } },
+  responses: {
+    200: { description: 'The updated goals', content: json(z.array(TrainingGoal)) },
+    403: problem('Not permitted for this role'),
+    422: problem('Validation failed'),
   },
 });
 

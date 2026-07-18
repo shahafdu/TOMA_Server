@@ -133,6 +133,24 @@ export class ReportsRepository {
     return rows.map((r) => ({ discipline: r.discipline, amount: Number(r.amount) }));
   }
 
+  /**
+   * One row per (person, distinct attended course) in the given year, carrying the course's
+   * discipline, mandatory flag and total hours. Callers aggregate this into per-discipline hours,
+   * elective counts and per-member rollups. Uses DISTINCT (CourseID, ID) so a multi-day course is
+   * counted once per person.
+   */
+  async attendedCourseHours(eligibleIds: number[], year: number): Promise<AttendedHoursRow[]> {
+    if (eligibleIds.length === 0) return [];
+    return this.db.query<AttendedHoursRow>(
+      `SELECT a.ID AS sircID, c.Discipline AS discipline, c.IsMandatory AS isMandatory,
+              a.CourseID AS courseId, c.TotalHours AS totalHours
+       FROM (SELECT DISTINCT CourseID, ID FROM coma.coursedatetimetouser) a
+       JOIN coma.courses c ON c.CourseID = a.CourseID
+       WHERE c.Year = ? AND a.ID IN (?)`,
+      [year, eligibleIds],
+    );
+  }
+
   /** Every in-scope registration this year with whether the person actually attended (#10). */
   async attendance(eligibleIds: number[], year: number): Promise<AttendanceDataRow[]> {
     if (eligibleIds.length === 0) return [];
@@ -168,4 +186,12 @@ interface AttendanceDataRow extends RowDataPacket {
   Discipline: string | null;
   status: string;
   attended: number;
+}
+
+interface AttendedHoursRow extends RowDataPacket {
+  sircID: number;
+  discipline: string | null;
+  isMandatory: number;
+  courseId: number;
+  totalHours: string | number;
 }

@@ -98,6 +98,16 @@ CREATE TABLE hours (
   yearlyTargetHours2026 INT NOT NULL DEFAULT 0
 );
 
+-- NEW (additive): per-discipline yearly training-hour goals, applied to every employee.
+-- Management/leadership tracks are modelled as disciplines here too, so a single
+-- (Year, Discipline) grain covers both subject-domain and management-level goals.
+CREATE TABLE training_goal (
+  Year        INT          NOT NULL,
+  Discipline  VARCHAR(64)  NOT NULL,
+  TargetHours DECIMAL(6, 2) NOT NULL DEFAULT 0,
+  PRIMARY KEY (Year, Discipline)
+);
+
 -- NEW (plan M1): explicit role assignment. Overrides the authorizationIdCOMA→role mapping,
 -- and is the only way to represent the admin/developer roles that the legacy column can't.
 CREATE TABLE user_role (

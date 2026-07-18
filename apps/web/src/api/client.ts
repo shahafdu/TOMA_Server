@@ -17,7 +17,9 @@ import type {
   PriorParticipation,
   RegistrationResult,
   Role,
+  TeamDevelopmentReport,
   TrainingCycle,
+  TrainingGoal,
 } from '@toma/shared';
 
 /**
@@ -119,6 +121,12 @@ export const api = {
   budget: (year: number) => request<BudgetReport>('GET', `/reports/budget?year=${year}`),
   attendance: (scope: ComplianceScope, year: number) =>
     request<AttendanceReport>('GET', `/reports/attendance?scope=${scope}&year=${year}`),
+  teamDevelopment: (scope: ComplianceScope, year: number) =>
+    request<TeamDevelopmentReport>('GET', `/reports/team-development?scope=${scope}&year=${year}`),
+
+  goals: (year: number) => request<TrainingGoal[]>('GET', `/goals?year=${year}`),
+  setGoals: (year: number, goals: { discipline: string; targetHours: number }[]) =>
+    request<TrainingGoal[]>('PUT', '/goals', { year, goals }),
 
   // ---- Quarterly cycle workflow ----
   cycleBoard: (cycleId?: number) =>
