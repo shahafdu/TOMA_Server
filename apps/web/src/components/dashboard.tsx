@@ -57,11 +57,23 @@ export function MyTrainingCard({ data }: { data: MyTraining }) {
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Your training · {data.year}
-        </Typography>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          sx={{ mb: 1 }}
+          flexWrap="wrap"
+        >
+          <Typography variant="h6">Your training · {data.year}</Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="caption" color="text.secondary">
+              Discipline
+            </Typography>
+            <DisciplineChip discipline={data.discipline} />
+          </Stack>
+        </Stack>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems="center">
-          <HoursRing hours={data.hours} target={data.targetHours} />
+          <HoursRing hours={data.hours} target={data.disciplineGoalHours} />
           <Box sx={{ flexGrow: 1, width: '100%' }}>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               Required training — {done}/{data.required.length} complete
@@ -221,50 +233,45 @@ export function BudgetPanel({ report }: { report: BudgetReport }) {
   );
 }
 
-/** Shared row: one discipline's actual hours vs its goal, as a labelled progress bar. */
-export function DisciplineProgressRow({ p }: { p: DisciplineProgress }) {
-  const hasGoal = p.goalHours > 0;
-  const pct = hasGoal ? Math.min(100, Math.round((p.actualHours / p.goalHours) * 100)) : 0;
+/** One row of the informational "hours by subject" breakdown (a proportional bar + hours). */
+export function SubjectHoursRow({ p, max }: { p: DisciplineProgress; max: number }) {
   return (
-    <Box>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 0.5 }}>
-        <Box sx={{ width: 180, flexShrink: 0 }}>
-          <DisciplineChip discipline={p.discipline} />
-        </Box>
-        <Box sx={{ flexGrow: 1 }}>
-          {hasGoal ? (
-            <LinearProgress
-              variant="determinate"
-              value={pct}
-              color={p.metGoal ? 'success' : pct >= 60 ? 'warning' : 'primary'}
-              sx={{ height: 8, borderRadius: 4 }}
-            />
-          ) : (
-            <Typography variant="caption" color="text.secondary">
-              No goal set
-            </Typography>
-          )}
-        </Box>
-        <Stack
-          direction="row"
-          spacing={0.5}
-          alignItems="center"
-          sx={{ width: 96, justifyContent: 'flex-end' }}
-        >
-          <Typography
-            variant="body2"
-            color={p.metGoal && hasGoal ? 'success.main' : 'text.primary'}
-          >
-            {p.actualHours}h{hasGoal ? ` / ${p.goalHours}h` : ''}
-          </Typography>
-          {hasGoal && p.metGoal && <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />}
-        </Stack>
-      </Stack>
-    </Box>
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Box sx={{ width: 170, flexShrink: 0 }}>
+        <DisciplineChip discipline={p.discipline} />
+      </Box>
+      <LinearProgress
+        variant="determinate"
+        value={max > 0 ? (p.actualHours / max) * 100 : 0}
+        sx={{ flexGrow: 1, height: 8, borderRadius: 4 }}
+      />
+      <Typography variant="body2" sx={{ width: 48, textAlign: 'right' }}>
+        {p.actualHours}h
+      </Typography>
+    </Stack>
   );
 }
 
-/** Personal development goals: per-discipline actual hours vs the yearly goal (requirement). */
+/** The year's completed hours broken down by the subject (discipline) of each course. */
+export function SubjectBreakdown({ items }: { items: DisciplineProgress[] }) {
+  const max = Math.max(1, ...items.map((d) => d.actualHours));
+  if (items.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No completed training hours yet.
+      </Typography>
+    );
+  }
+  return (
+    <Stack spacing={1.5}>
+      {items.map((d) => (
+        <SubjectHoursRow key={d.discipline} p={d} max={max} />
+      ))}
+    </Stack>
+  );
+}
+
+/** Personal "hours by subject" card — where the year's training hours came from. */
 export function GoalsPanel({
   byDiscipline,
   year,
@@ -272,48 +279,16 @@ export function GoalsPanel({
   byDiscipline: DisciplineProgress[];
   year: number;
 }) {
-  const withGoals = byDiscipline.filter((d) => d.goalHours > 0);
-  const extras = byDiscipline.filter((d) => d.goalHours === 0 && d.actualHours > 0);
-  const met = withGoals.filter((d) => d.metGoal).length;
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 3 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-          <Box>
-            <Typography variant="h6">Development goals</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {year} · hours by discipline vs. goal
-            </Typography>
-          </Box>
-          {withGoals.length > 0 && (
-            <Typography
-              variant="h5"
-              color={met === withGoals.length ? 'success.main' : 'text.primary'}
-            >
-              {met}/{withGoals.length}
-            </Typography>
-          )}
-        </Stack>
-        <Stack spacing={2} sx={{ mt: 2 }}>
-          {withGoals.length === 0 && extras.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              No discipline goals set for {year} yet.
-            </Typography>
-          )}
-          {withGoals.map((d) => (
-            <DisciplineProgressRow key={d.discipline} p={d} />
-          ))}
-          {extras.length > 0 && (
-            <>
-              <Typography variant="caption" color="text.secondary" sx={{ pt: 1 }}>
-                Other training completed
-              </Typography>
-              {extras.map((d) => (
-                <DisciplineProgressRow key={d.discipline} p={d} />
-              ))}
-            </>
-          )}
-        </Stack>
+        <Typography variant="h6">Training by subject</Typography>
+        <Typography variant="caption" color="text.secondary">
+          {year} · completed hours by course discipline
+        </Typography>
+        <Box sx={{ mt: 2 }}>
+          <SubjectBreakdown items={byDiscipline} />
+        </Box>
       </CardContent>
     </Card>
   );

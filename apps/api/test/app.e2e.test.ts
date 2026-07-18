@@ -171,14 +171,15 @@ describe('TOMA API (e2e, against mockup DB)', () => {
   });
 
   describe('course disciplines', () => {
-    it('exposes the discipline on courses', async () => {
+    it('exposes the discipline and sub-discipline on courses', async () => {
       const { agent } = await login('alice');
       const res = await agent.get('/api/v1/courses?year=2026');
       const security = res.body.find((c: { title: string }) => c.title === 'Security Awareness');
-      expect(security.discipline).toBe('Security & Compliance');
+      expect(security.discipline).toBe('IT');
+      expect(security.subDiscipline).toBe('Information Security');
       const disciplines = new Set(res.body.map((c: { discipline: string }) => c.discipline));
-      expect(disciplines).toContain('Engineering');
-      expect(disciplines).toContain('Cloud & Infra');
+      expect(disciplines).toContain('SW');
+      expect(disciplines).toContain('DevOps');
     });
   });
 
@@ -255,10 +256,8 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       // committed = sum of non-tentative 2026 course prices (excludes tentative "Future AI")
       expect(res.body.committed).toBeGreaterThan(0);
       expect(Array.isArray(res.body.byDiscipline)).toBe(true);
-      const eng = res.body.byDiscipline.find(
-        (d: { discipline: string }) => d.discipline === 'Engineering',
-      );
-      expect(eng.amount).toBeGreaterThan(0);
+      const sw = res.body.byDiscipline.find((d: { discipline: string }) => d.discipline === 'SW');
+      expect(sw.amount).toBeGreaterThan(0);
     });
 
     it('forbids budget for a manager and an employee', async () => {
@@ -469,32 +468,44 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       const { agent } = await login('carol');
       const res = await agent.get('/api/v1/goals?year=2026');
       expect(res.status).toBe(200);
-      const eng = res.body.find((g: { discipline: string }) => g.discipline === 'Engineering');
-      expect(eng.targetHours).toBe(16);
+      const sw = res.body.find((g: { discipline: string }) => g.discipline === 'SW');
+      expect(sw.targetHours).toBe(40);
     });
 
-    it('personal summary breaks actual hours down by discipline vs goal', async () => {
-      const { agent } = await login('carol');
+    it("measures the employee's total hours against their own discipline's goal", async () => {
+      const { agent } = await login('carol'); // Carol is SW (goal 40h)
       const res = await agent.get('/api/v1/me/training?year=2026');
       expect(res.status).toBe(200);
+      expect(res.body.discipline).toBe('SW');
+      expect(res.body.disciplineGoalHours).toBe(40);
+      // byDiscipline is the informational "hours by subject" breakdown (no goal attached).
       expect(Array.isArray(res.body.byDiscipline)).toBe(true);
-      const sec = res.body.byDiscipline.find(
-        (d: { discipline: string }) => d.discipline === 'Security & Compliance',
-      );
-      expect(sec.goalHours).toBe(5);
-      expect(sec.actualHours).toBeGreaterThan(0); // Carol attended compliance courses
     });
 
-    it("team development lists the manager's people with elective counts", async () => {
+    it('defaults an employee with no Emma discipline to General', async () => {
+      const { agent } = await login('gina'); // seeded with NULL discipline
+      const res = await agent.get('/api/v1/me/training?year=2026');
+      expect(res.status).toBe(200);
+      expect(res.body.discipline).toBe('General');
+      expect(res.body.disciplineGoalHours).toBe(10);
+    });
+
+    it('team development lists people with their discipline, goal and elective counts', async () => {
       const { agent } = await login('bob');
       const res = await agent.get('/api/v1/reports/team-development?scope=team&year=2026');
       expect(res.status).toBe(200);
       expect(res.body.scope).toBe('team');
       expect(res.body.members.length).toBe(res.body.totalPeople);
       expect(res.body.peopleWithElectives).toBeGreaterThan(0); // some attended non-mandatory courses
-      const anyMember = res.body.members[0];
-      expect(anyMember).toHaveProperty('electiveCount');
-      expect(anyMember).toHaveProperty('byDiscipline');
+      const carol = res.body.members.find((m: { employeeName: string }) =>
+        m.employeeName.startsWith('Carol'),
+      );
+      expect(carol.discipline).toBe('SW');
+      expect(carol.disciplineGoalHours).toBe(40);
+      expect(carol).toHaveProperty('metGoal');
+      // the aggregate is grouped by the people's own discipline
+      const sw = res.body.disciplines.find((d: { discipline: string }) => d.discipline === 'SW');
+      expect(sw.totalPeople).toBeGreaterThan(0);
     });
 
     it('organization development is HR-only', async () => {
@@ -516,7 +527,7 @@ describe('TOMA API (e2e, against mockup DB)', () => {
         (
           await carol.agent
             .put('/api/v1/goals')
-            .send({ year: 2099, goals: [{ discipline: 'Engineering', targetHours: 10 }] })
+            .send({ year: 2099, goals: [{ discipline: 'SW', targetHours: 10 }] })
         ).status,
       ).toBe(403);
 
@@ -524,8 +535,8 @@ describe('TOMA API (e2e, against mockup DB)', () => {
       const put = await agent.put('/api/v1/goals').send({
         year: 2099,
         goals: [
-          { discipline: 'Engineering', targetHours: 10 },
-          { discipline: 'Leadership', targetHours: 4 },
+          { discipline: 'SW', targetHours: 10 },
+          { discipline: 'Management', targetHours: 4 },
         ],
       });
       expect(put.status).toBe(200);

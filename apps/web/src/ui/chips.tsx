@@ -66,15 +66,19 @@ export function QuarterChip({ quarter }: { quarter: number }) {
   );
 }
 
-// Deterministic, calm background per discipline so the catalog reads as one system.
+// Deterministic, calm background per high-level discipline so the app reads as one system.
 const DISCIPLINE_COLORS: Record<string, string> = {
-  Engineering: '#4f46e5',
-  'Data & AI': '#7c3aed',
-  'Cloud & Infra': '#0ea5e9',
-  'Security & Compliance': '#dc2626',
-  Leadership: '#d97706',
-  'Product & Design': '#0d9488',
-  'Soft Skills': '#db2777',
+  SW: '#4f46e5',
+  HW: '#0891b2',
+  FW: '#0d9488',
+  DevOps: '#0ea5e9',
+  IT: '#7c3aed',
+  HR: '#db2777',
+  Finance: '#16a34a',
+  Management: '#d97706',
+  'Senior Management': '#b45309',
+  'Project Management': '#dc2626',
+  General: '#64748b',
 };
 
 function colorFor(discipline: string): string {
@@ -85,13 +89,19 @@ function colorFor(discipline: string): string {
   return `hsl(${Math.abs(hash) % 360} 55% 45%)`;
 }
 
-export function DisciplineChip({ discipline }: { discipline: string | null }) {
+export function DisciplineChip({
+  discipline,
+  subDiscipline,
+}: {
+  discipline: string | null;
+  subDiscipline?: string | null;
+}) {
   if (!discipline) return null;
   const color = colorFor(discipline);
   return (
     <Chip
       size="small"
-      label={discipline}
+      label={subDiscipline ? `${discipline} · ${subDiscipline}` : discipline}
       sx={{
         bgcolor: `${color}1f`,
         color,

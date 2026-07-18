@@ -50,8 +50,10 @@ export const Course = z
     notes: z.string().nullable(),
     mailText: z.string().nullable(),
     type: CourseType,
-    /** Subject domain/discipline (HR-defined), e.g. "Security & Compliance", "Cloud & Infra". */
+    /** High-level discipline (shared with employees), e.g. "SW", "DevOps", "Management". */
     discipline: z.string().nullable(),
+    /** Finer topic within the discipline, e.g. "Web Development", "Containers". */
+    subDiscipline: z.string().nullable(),
     status: CourseStatus,
     deliveryType: DeliveryType,
     platform: Platform.nullable(),
@@ -103,6 +105,7 @@ const CourseInputBase = z.object({
   mailText: z.string().nullable().optional(),
   type: CourseType,
   discipline: z.string().nullable().optional(),
+  subDiscipline: z.string().nullable().optional(),
   totalHours: z.number().nonnegative().default(0),
   deliveryType: DeliveryType,
   platform: Platform.nullable().optional(),

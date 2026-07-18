@@ -16,7 +16,8 @@ CREATE TABLE courses (
   IsMandatory                  TINYINT(1)    NOT NULL DEFAULT 0,
   IsConference                 TINYINT(1)    NOT NULL DEFAULT 0,
   CourseType                   INT           NOT NULL DEFAULT 0,
-  Discipline                   VARCHAR(64)   NULL,          -- NEW (additive): subject domain
+  Discipline                   VARCHAR(64)   NULL,          -- NEW (additive): high-level discipline (SW, DevOps, …)
+  SubDiscipline                VARCHAR(64)   NULL,          -- NEW (additive): finer topic (e.g. "Web Development")
   -- NEW (additive, plan §2.3.1 + registration epic): delivery, seats, self-reg, constraints.
   DeliveryType                 VARCHAR(16)   NOT NULL DEFAULT 'in_person',  -- 'in_person' | 'online'
   Platform                     VARCHAR(16)   NULL,          -- online: 'corporate' | 'other'

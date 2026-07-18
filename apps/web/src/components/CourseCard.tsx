@@ -70,7 +70,7 @@ export function CourseCard({ course }: { course: Course }) {
         </Typography>
         {course.discipline && (
           <Box sx={{ mb: 1 }}>
-            <DisciplineChip discipline={course.discipline} />
+            <DisciplineChip discipline={course.discipline} subDiscipline={course.subDiscipline} />
           </Box>
         )}
         <Typography variant="body2" color="text.secondary" sx={{ minHeight: 40 }}>

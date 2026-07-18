@@ -24,6 +24,8 @@ export const Employee = z.object({
   title: z.string().nullable(),
   rank: z.number().int().min(1).max(8).nullable(),
   category: z.string().nullable(),
+  /** High-level professional discipline (from Emma; 'General' when the source has none). */
+  discipline: z.string(),
   status: EmployeeStatus,
   startDate: IsoDate.nullable(),
   endDate: IsoDate.nullable(),
@@ -40,6 +42,7 @@ export const EmployeeSummary = Employee.pick({
   title: true,
   managerId: true,
   category: true,
+  discipline: true,
   status: true,
 });
 export type EmployeeSummary = z.infer<typeof EmployeeSummary>;

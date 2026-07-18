@@ -1,16 +1,26 @@
 import { z } from 'zod';
 import { CourseId, EmployeeId } from './ids.js';
 
-/** Curated disciplines shipped as suggestions; HR may use any string (plan §2.6). */
+/**
+ * High-level disciplines (the professional track shared by employees and courses). Shipped as
+ * suggestions; HR may use any string. `General` is the default for employees with no discipline.
+ */
 export const KNOWN_DISCIPLINES = [
-  'Engineering',
-  'Data & AI',
-  'Cloud & Infra',
-  'Security & Compliance',
-  'Leadership',
-  'Product & Design',
-  'Soft Skills',
+  'General',
+  'SW',
+  'HW',
+  'FW',
+  'DevOps',
+  'IT',
+  'HR',
+  'Finance',
+  'Management',
+  'Senior Management',
+  'Project Management',
 ] as const;
+
+/** The discipline assigned to an employee who has none in the source system (Emma). */
+export const DEFAULT_DISCIPLINE = 'General';
 
 /** One mandatory course and whether the current user has completed (attended) it. */
 export const RequiredCourse = z.object({
@@ -42,7 +52,11 @@ export const MyTraining = z.object({
   targetHours: z.number().nonnegative(),
   registeredCount: z.number().int().nonnegative(),
   required: z.array(RequiredCourse),
-  /** Per-discipline actual hours vs. the yearly discipline goal. */
+  /** The employee's own discipline (their track) — the goal is measured against this. */
+  discipline: z.string(),
+  /** Yearly training-hour goal for the employee's discipline (0 if none set). */
+  disciplineGoalHours: z.number().nonnegative(),
+  /** Informational breakdown of the year's hours by the subject (discipline) of each course. */
   byDiscipline: z.array(DisciplineProgress),
 });
 export type MyTraining = z.infer<typeof MyTraining>;
@@ -100,16 +114,24 @@ export const MemberTraining = z.object({
   employeeName: z.string(),
   department: z.string().nullable(),
   managerId: EmployeeId.nullable(),
+  /** The employee's discipline (their track) — determines which goal applies to them. */
+  discipline: z.string(),
+  /** Total training hours this year (all courses). */
   totalHours: z.number().nonnegative(),
+  /** Yearly goal for the employee's discipline (0 if none set). */
+  disciplineGoalHours: z.number().nonnegative(),
+  /** Whether totalHours meets the discipline goal (true when the goal is 0). */
+  metGoal: z.boolean(),
   mandatoryDone: z.number().int().nonnegative(),
   mandatoryTotal: z.number().int().nonnegative(),
   /** Distinct non-mandatory ("elective"/development) courses the person actually attended. */
   electiveCount: z.number().int().nonnegative(),
+  /** Informational breakdown of hours by the subject (discipline) of each course. */
   byDiscipline: z.array(DisciplineProgress),
 });
 export type MemberTraining = z.infer<typeof MemberTraining>;
 
-/** Aggregate attainment of one discipline's goal across a group of people. */
+/** Aggregate attainment of a discipline's goal across the people who belong to that discipline. */
 export const DisciplineAttainment = z.object({
   discipline: z.string(),
   goalHours: z.number().nonnegative(),

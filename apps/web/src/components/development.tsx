@@ -31,7 +31,7 @@ import {
 import { Fragment, useMemo, useState } from 'react';
 import { useSetGoals } from '../api/queries.js';
 import { DisciplineChip } from '../ui/chips.js';
-import { DisciplineProgressRow } from './dashboard.js';
+import { SubjectBreakdown } from './dashboard.js';
 import { StatCard } from './common.js';
 
 /**
@@ -203,13 +203,14 @@ export function PeopleTrainingTable({ members }: { members: MemberTraining[] }) 
                   </TableSortLabel>
                 </TableCell>
                 <TableCell>Department</TableCell>
+                <TableCell>Discipline</TableCell>
                 <TableCell align="right">
                   <TableSortLabel
                     active={sortKey === 'totalHours'}
                     direction={asc ? 'asc' : 'desc'}
                     onClick={sortHandler('totalHours')}
                   >
-                    Hours
+                    Hours vs goal
                   </TableSortLabel>
                 </TableCell>
                 <TableCell align="right">
@@ -261,7 +262,20 @@ export function PeopleTrainingTable({ members }: { members: MemberTraining[] }) 
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{m.employeeName}</TableCell>
                       <TableCell sx={{ color: 'text.secondary' }}>{m.department ?? '—'}</TableCell>
-                      <TableCell align="right">{m.totalHours}h</TableCell>
+                      <TableCell>
+                        <DisciplineChip discipline={m.discipline} />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          component="span"
+                          color={m.metGoal ? 'success.main' : 'text.primary'}
+                          sx={{ fontWeight: m.metGoal ? 600 : 400 }}
+                        >
+                          {m.totalHours}h
+                          {m.disciplineGoalHours > 0 ? ` / ${m.disciplineGoalHours}h` : ''}
+                        </Typography>
+                      </TableCell>
                       <TableCell align="right">
                         <Chip
                           size="small"
@@ -273,23 +287,13 @@ export function PeopleTrainingTable({ members }: { members: MemberTraining[] }) 
                       <TableCell align="right">{m.electiveCount}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell sx={{ py: 0, border: 0 }} colSpan={6}>
+                      <TableCell sx={{ py: 0, border: 0 }} colSpan={7}>
                         <Collapse in={open} unmountOnExit>
                           <Box sx={{ py: 2, px: 1 }}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                              Hours by discipline vs. goal
+                              Hours by subject
                             </Typography>
-                            {m.byDiscipline.length === 0 ? (
-                              <Typography variant="body2" color="text.secondary">
-                                No training hours recorded this year.
-                              </Typography>
-                            ) : (
-                              <Stack spacing={1.5} sx={{ mt: 1 }}>
-                                {m.byDiscipline.map((d) => (
-                                  <DisciplineProgressRow key={d.discipline} p={d} />
-                                ))}
-                              </Stack>
-                            )}
+                            <SubjectBreakdown items={m.byDiscipline} />
                           </Box>
                         </Collapse>
                       </TableCell>
@@ -299,7 +303,7 @@ export function PeopleTrainingTable({ members }: { members: MemberTraining[] }) 
               })}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ color: 'text.secondary' }}>
+                  <TableCell colSpan={7} sx={{ color: 'text.secondary' }}>
                     No people match “{query}”.
                   </TableCell>
                 </TableRow>

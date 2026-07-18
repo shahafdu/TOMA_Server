@@ -25,6 +25,7 @@ interface CourseRow extends RowDataPacket {
   IsConference: number;
   CourseType: number;
   Discipline: string | null;
+  SubDiscipline: string | null;
   DeliveryType: string;
   Platform: string | null;
   PlatformUrl: string | null;
@@ -52,7 +53,7 @@ interface TeamRestrictionRow extends RowDataPacket {
 
 const COURSE_SELECT = `
   SELECT CourseID, CourseName, Syllabus, Notes, TextForMail, TotalHours, Price, Location,
-         IsIn, IsMandatory, IsConference, CourseType, Discipline, DeliveryType, Platform,
+         IsIn, IsMandatory, IsConference, CourseType, Discipline, SubDiscipline, DeliveryType, Platform,
          PlatformUrl, Capacity, PerManagerLimit, SelfRegistration, ExcludeSubcontractors,
          ExcludeStudents, CycleID, LifecycleState, Year, isTentative
   FROM coma.courses`;
@@ -187,6 +188,9 @@ export function toSummary(r: ParticipantRow): EmployeeSummary {
     title: r.workTitle,
     managerId: r.managerSircID != null ? String(r.managerSircID) : null,
     category: r.category,
+    // Participant rosters don't surface discipline; default it (avoids depending on the optional
+    // emma.users.discipline column here — the People roster reads the real value via EmployeesRepository).
+    discipline: 'General',
     status: r.status,
   });
 }
@@ -212,6 +216,7 @@ function mapCourse(
     mailText: row.TextForMail,
     type: row.IsConference ? 'conference' : row.CourseType === 0 ? 'technical' : 'enrichment',
     discipline: row.Discipline,
+    subDiscipline: row.SubDiscipline,
     status: row.isTentative ? 'tentative' : 'scheduled',
     deliveryType,
     platform: deliveryType === 'online' ? platform : null,

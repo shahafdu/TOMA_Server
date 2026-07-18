@@ -24,6 +24,7 @@ interface EmployeeRow extends RowDataPacket {
   workTitle: string | null;
   rank: number | null;
   category: string | null;
+  discipline: string | null;
   status: string;
   startDate: string | null;
   startDate2: string | null;
@@ -49,27 +50,46 @@ interface ManagerIdRow extends RowDataPacket {
   managerSircID: number | null;
 }
 
-const EMPLOYEE_SELECT = `
-  SELECT u.sircID, u.userName, u.firstName, u.lastName, u.email, u.managerSircID, u.teamName,
-         u.workTitle, u.\`rank\`, u.category, u.status, u.startDate, u.startDate2, u.endDate,
-         u.endDate2, u.imageUrl, u.authorizationIdCOMA, r.role AS roleOverride
-  FROM emma.users u
-  LEFT JOIN coma.user_role r ON r.sircID = u.sircID`;
-
-const EMPLOYEE_SELECT_WHERE = `${EMPLOYEE_SELECT} WHERE`;
-
 /** Reads employees from `emma.users` (read-only) and role overrides from `coma.user_role`. */
 @Injectable()
 export class EmployeesRepository {
   constructor(private readonly db: DbService) {}
 
+  // `emma.users.discipline` is owned by the Emma app and may not exist yet in a given deployment.
+  // We detect it once and fall back to 'General' so TOMA stays backwards-compatible either way.
+  private disciplineColumn: boolean | null = null;
+
+  private async hasDisciplineColumn(): Promise<boolean> {
+    if (this.disciplineColumn === null) {
+      const rows = await this.db.query<CountRow>(
+        `SELECT COUNT(*) AS c FROM information_schema.columns
+         WHERE table_schema = 'emma' AND table_name = 'users' AND column_name = 'discipline'`,
+      );
+      this.disciplineColumn = Number(rows[0]?.c ?? 0) > 0;
+    }
+    return this.disciplineColumn;
+  }
+
+  /** The employee projection, with the discipline expression resolved for this deployment. */
+  private async employeeSelect(): Promise<string> {
+    const disciplineExpr = (await this.hasDisciplineColumn())
+      ? "COALESCE(NULLIF(TRIM(u.discipline), ''), 'General')"
+      : "'General'";
+    return `
+  SELECT u.sircID, u.userName, u.firstName, u.lastName, u.email, u.managerSircID, u.teamName,
+         u.workTitle, u.\`rank\`, u.category, ${disciplineExpr} AS discipline, u.status,
+         u.startDate, u.startDate2, u.endDate, u.endDate2, u.imageUrl, u.authorizationIdCOMA,
+         r.role AS roleOverride
+  FROM emma.users u
+  LEFT JOIN coma.user_role r ON r.sircID = u.sircID`;
+  }
+
   /** Resolve a login to the identity DevAuth / the session needs. */
   async authLookup(
     username: string,
   ): Promise<{ userId: string; role: Role; fullName: string; email: string | null } | null> {
-    const rows = await this.db.query<EmployeeRow>(`${EMPLOYEE_SELECT} WHERE u.userName = ?`, [
-      username,
-    ]);
+    const select = await this.employeeSelect();
+    const rows = await this.db.query<EmployeeRow>(`${select} WHERE u.userName = ?`, [username]);
     const row = rows[0];
     if (!row) return null;
     return {
@@ -81,7 +101,8 @@ export class EmployeesRepository {
   }
 
   async findById(id: string): Promise<Employee | null> {
-    const rows = await this.db.query<EmployeeRow>(`${EMPLOYEE_SELECT} WHERE u.sircID = ?`, [id]);
+    const select = await this.employeeSelect();
+    const rows = await this.db.query<EmployeeRow>(`${select} WHERE u.sircID = ?`, [id]);
     return rows[0] ? mapEmployee(rows[0]) : null;
   }
 
@@ -96,6 +117,7 @@ export class EmployeesRepository {
 
   /** Every working employee in the caller's org subtree, as roster candidates (requirement #7). */
   async subtreeSummaries(managerId: string): Promise<EmployeeSummary[]> {
+    const select = await this.employeeSelect();
     const rows = await this.db.query<EmployeeRow>(
       `WITH RECURSIVE sub AS (
          SELECT sircID FROM emma.users WHERE managerSircID = ? AND status = 'working'
@@ -104,7 +126,7 @@ export class EmployeesRepository {
            INNER JOIN sub s ON u.managerSircID = s.sircID
          WHERE u.status = 'working'
        )
-       ${EMPLOYEE_SELECT_WHERE} u.sircID IN (SELECT sircID FROM sub)
+       ${select} WHERE u.sircID IN (SELECT sircID FROM sub)
        ORDER BY u.firstName, u.lastName`,
       [managerId],
     );
@@ -113,8 +135,9 @@ export class EmployeesRepository {
 
   /** All working employees, as roster candidates (HR scope). */
   async allWorkingSummaries(): Promise<EmployeeSummary[]> {
+    const select = await this.employeeSelect();
     const rows = await this.db.query<EmployeeRow>(
-      `${EMPLOYEE_SELECT_WHERE} u.status = 'working' ORDER BY u.firstName, u.lastName`,
+      `${select} WHERE u.status = 'working' ORDER BY u.firstName, u.lastName`,
     );
     return rows.map(mapSummary);
   }
@@ -148,8 +171,9 @@ export class EmployeesRepository {
       clauses.push("CONCAT(u.firstName, ' ', u.lastName) LIKE ?");
       params.push(`%${filter.query}%`);
     }
+    const select = await this.employeeSelect();
     const rows = await this.db.query<EmployeeRow>(
-      `${EMPLOYEE_SELECT} WHERE ${clauses.join(' AND ')} ORDER BY u.firstName, u.lastName`,
+      `${select} WHERE ${clauses.join(' AND ')} ORDER BY u.firstName, u.lastName`,
       params,
     );
     return rows.map(mapEmployee);
@@ -202,6 +226,7 @@ function mapSummary(row: EmployeeRow): EmployeeSummary {
     title: row.workTitle,
     managerId: row.managerSircID != null ? String(row.managerSircID) : null,
     category: row.category,
+    discipline: row.discipline ?? 'General',
     status: row.status,
   });
 }
@@ -220,6 +245,7 @@ function mapEmployee(row: EmployeeRow): Employee {
     title: row.workTitle,
     rank: row.rank,
     category: row.category,
+    discipline: row.discipline ?? 'General',
     status: row.status,
     startDate: startRaw ? startRaw.slice(0, 10) : null,
     endDate: endRaw ? endRaw.slice(0, 10) : null,

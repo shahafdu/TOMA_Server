@@ -7,41 +7,44 @@
 --  * teamName stored with parentheses; a 'left' employee
 
 USE emma;
+-- `discipline` is the high-level professional track (owned by Emma). Subcontractor/student are
+-- left NULL to exercise the 'General' default (backwards compatibility with an Emma without it).
 INSERT INTO users
-  (sircID, userName, firstName, lastName, email, workTitle, `rank`, teamName, category, status, startDate, managerSircID, authorizationIdCOMA)
+  (sircID, userName, firstName, lastName, email, workTitle, `rank`, teamName, category, discipline, status, startDate, managerSircID, authorizationIdCOMA)
 VALUES
-  (1, 'alice',   'Alice', 'Cohen',   'alice@example.com',   'HR Lead',   NULL, '(HR)',  'SIRC', 'working', '2018-02-01', NULL, 2),
-  (2, 'bob',     'Bob',   'Levi',    'bob@example.com',     'Team Lead', 3,    '(R&D)', 'SIRC', 'working', '2019-05-01', 1,    3),
-  (3, 'carol',   'Carol', 'Mizrahi', 'carol@example.com',   'Engineer',  NULL, '(R&D)', 'SIRC', 'working', '2021-09-01', 2,    1),
-  (4, 'dave',    'Dave',  'Peretz',  'dave@example.com',    'Engineer',  NULL, '(R&D)', 'SIRC', 'working', '2022-01-15', 2,    1),
-  (5, 'admin',   'Ada',   'Admin',   'admin@example.com',   'IT Admin',  NULL, '(IT)',  'SIRC', 'working', '2017-01-01', NULL, 2),
-  (6, 'devuser', 'Dana',  'Dev',     'devuser@example.com', 'Developer', NULL, '(IT)',  'SIRC', 'working', '2020-03-01', NULL, 1),
-  (7, 'erin',    'Erin',  'Gross',   'erin@example.com',    'Engineer',  NULL, '(R&D)', 'SIRC', 'left',    '2019-01-01', 2,    1),
+  (1, 'alice',   'Alice', 'Cohen',   'alice@example.com',   'HR Lead',   NULL, '(HR)',  'SIRC', 'HR',         'working', '2018-02-01', NULL, 2),
+  (2, 'bob',     'Bob',   'Levi',    'bob@example.com',     'Team Lead', 3,    '(R&D)', 'SIRC', 'Management', 'working', '2019-05-01', 1,    3),
+  (3, 'carol',   'Carol', 'Mizrahi', 'carol@example.com',   'Engineer',  NULL, '(R&D)', 'SIRC', 'SW',         'working', '2021-09-01', 2,    1),
+  (4, 'dave',    'Dave',  'Peretz',  'dave@example.com',    'Engineer',  NULL, '(R&D)', 'SIRC', 'SW',         'working', '2022-01-15', 2,    1),
+  (5, 'admin',   'Ada',   'Admin',   'admin@example.com',   'IT Admin',  NULL, '(IT)',  'SIRC', 'IT',         'working', '2017-01-01', NULL, 2),
+  (6, 'devuser', 'Dana',  'Dev',     'devuser@example.com', 'Developer', NULL, '(IT)',  'SIRC', 'SW',         'working', '2020-03-01', NULL, 1),
+  (7, 'erin',    'Erin',  'Gross',   'erin@example.com',    'Engineer',  NULL, '(R&D)', 'SIRC', 'SW',         'left',    '2019-01-01', 2,    1),
   -- Non-permanent personnel under Bob, for the registration-constraint feature (#9).
-  (8, 'frank',   'Frank', 'Nadav',   'frank@example.com',   'Contractor',NULL, '(R&D)', 'subcontractor', 'working', '2023-01-01', 2, 1),
-  (9, 'gina',    'Gina',  'Shani',   'gina@example.com',    'Student',   NULL, '(R&D)', 'student',       'working', '2024-06-01', 2, 1);
+  (8, 'frank',   'Frank', 'Nadav',   'frank@example.com',   'Contractor',NULL, '(R&D)', 'subcontractor', NULL, 'working', '2023-01-01', 2, 1),
+  (9, 'gina',    'Gina',  'Shani',   'gina@example.com',    'Student',   NULL, '(R&D)', 'student',       NULL, 'working', '2024-06-01', 2, 1);
 
 USE coma;
 
 -- Explicit role overrides for the roles the legacy column cannot express.
 INSERT INTO user_role (sircID, role) VALUES (5, 'admin'), (6, 'developer');
 
+-- Discipline is the high-level track (shared with employees); SubDiscipline is the finer topic.
 INSERT INTO courses
-  (CourseID, CourseName, Lecturer, Syllabus, TotalHours, Price, Location, IsIn, IsMandatory, IsConference, CourseType, Discipline, Year, Creator, isTentative, participantsAmountEstimated)
+  (CourseID, CourseName, Lecturer, Syllabus, TotalHours, Price, Location, IsIn, IsMandatory, IsConference, CourseType, Discipline, SubDiscipline, Year, Creator, isTentative, participantsAmountEstimated)
 VALUES
-  (101, 'Intro to TypeScript #1 2025', 'Noa Bar',   'TS basics',        8,  4000, 'Room A', 1, 0, 0, 0, 'Engineering',          2025, 'Alice Cohen', 0, 0),
-  (201, 'Intro to TypeScript #2 2026', 'Noa Bar',   'TS basics',        8,  4500, 'Room A', 1, 0, 0, 0, 'Engineering',          2026, 'Alice Cohen', 0, 0),
-  (202, 'Java #1 2026',                'Guy Adar',  'Java fundamentals',6,  3000, 'Room B', 1, 0, 0, 0, 'Engineering',          2026, 'Alice Cohen', 0, 0),
-  (203, 'JavaScript #1 2026',          'Guy Adar',  'JS fundamentals',  6,  3200, 'Room B', 1, 0, 0, 0, 'Engineering',          2026, 'Alice Cohen', 0, 0),
-  (204, 'Leadership 101 2026',         'Rina Katz', 'Leading teams',    4,  2000, 'Room C', 1, 0, 0, 1, 'Leadership',           2026, 'Alice Cohen', 0, 0),
-  (205, 'Cloud Conf 2026',             'External',  'Cloud conference', 12, 6000, 'Expo',   0, 0, 1, 0, 'Cloud & Infra',        2026, 'Bob Levi',    0, 0),
-  (206, 'Future AI #1 2026',           '',          '',                 5,  0,    '',       1, 0, 0, 0, 'Data & AI',            2026, 'Bob Levi',    1, 10),
-  (207, 'Kubernetes Fundamentals 2026','Guy Adar',  'Containers & K8s', 12, 5200, 'Room B', 1, 0, 0, 0, 'Cloud & Infra',        2026, 'Alice Cohen', 0, 0),
-  (208, 'Security Awareness 2026',     'Rina Katz', 'Annual security training', 2, 0, 'Online', 1, 1, 0, 1, 'Security & Compliance', 2026, 'Alice Cohen', 0, 0),
-  (209, 'Effective Communication 2026','Rina Katz', 'Soft skills workshop', 6, 2400, 'Room C', 1, 0, 0, 1, 'Soft Skills',       2026, 'Alice Cohen', 0, 0),
-  (210, 'Design Systems 2026',         'Noa Bar',   'Building scalable UI design systems', 8, 4800, 'Room A', 1, 0, 0, 0, 'Product & Design', 2026, 'Bob Levi', 0, 0),
-  (211, 'Code of Conduct 2026',        'HR',        'Company code of conduct — required annually', 1, 0, 'Online', 1, 1, 0, 1, 'Security & Compliance', 2026, 'Alice Cohen', 0, 0),
-  (212, 'Data Privacy & Policy Compliance 2026', 'HR', 'Data privacy and policy compliance training', 2, 0, 'Online', 1, 1, 0, 1, 'Security & Compliance', 2026, 'Alice Cohen', 0, 0);
+  (101, 'Intro to TypeScript #1 2025', 'Noa Bar',   'TS basics',        8,  4000, 'Room A', 1, 0, 0, 0, 'SW',         'Web Development',      2025, 'Alice Cohen', 0, 0),
+  (201, 'Intro to TypeScript #2 2026', 'Noa Bar',   'TS basics',        8,  4500, 'Room A', 1, 0, 0, 0, 'SW',         'Web Development',      2026, 'Alice Cohen', 0, 0),
+  (202, 'Java #1 2026',                'Guy Adar',  'Java fundamentals',6,  3000, 'Room B', 1, 0, 0, 0, 'SW',         'Backend',              2026, 'Alice Cohen', 0, 0),
+  (203, 'JavaScript #1 2026',          'Guy Adar',  'JS fundamentals',  6,  3200, 'Room B', 1, 0, 0, 0, 'SW',         'Web Development',      2026, 'Alice Cohen', 0, 0),
+  (204, 'Leadership 101 2026',         'Rina Katz', 'Leading teams',    4,  2000, 'Room C', 1, 0, 0, 1, 'Management', 'Team Leadership',      2026, 'Alice Cohen', 0, 0),
+  (205, 'Cloud Conf 2026',             'External',  'Cloud conference', 12, 6000, 'Expo',   0, 0, 1, 0, 'DevOps',     'Cloud',                2026, 'Bob Levi',    0, 0),
+  (206, 'Future AI #1 2026',           '',          '',                 5,  0,    '',       1, 0, 0, 0, 'SW',         'AI & ML',              2026, 'Bob Levi',    1, 10),
+  (207, 'Kubernetes Fundamentals 2026','Guy Adar',  'Containers & K8s', 12, 5200, 'Room B', 1, 0, 0, 0, 'DevOps',     'Containers',           2026, 'Alice Cohen', 0, 0),
+  (208, 'Security Awareness 2026',     'Rina Katz', 'Annual security training', 2, 0, 'Online', 1, 1, 0, 1, 'IT',      'Information Security',  2026, 'Alice Cohen', 0, 0),
+  (209, 'Effective Communication 2026','Rina Katz', 'Soft skills workshop', 6, 2400, 'Room C', 1, 0, 0, 1, 'General', 'Communication',        2026, 'Alice Cohen', 0, 0),
+  (210, 'Design Systems 2026',         'Noa Bar',   'Building scalable UI design systems', 8, 4800, 'Room A', 1, 0, 0, 0, 'SW', 'Frontend',      2026, 'Bob Levi', 0, 0),
+  (211, 'Code of Conduct 2026',        'HR',        'Company code of conduct — required annually', 1, 0, 'Online', 1, 1, 0, 1, 'HR', 'Compliance',    2026, 'Alice Cohen', 0, 0),
+  (212, 'Data Privacy & Policy Compliance 2026', 'HR', 'Data privacy and policy compliance training', 2, 0, 'Online', 1, 1, 0, 1, 'IT', 'Data Protection', 2026, 'Alice Cohen', 0, 0);
 
 -- Delivery, seat and constraint settings (registration epic #8/#9 + delivery requirement).
 -- Online courses have unlimited seats and a connection link; no physical room.
@@ -127,13 +130,14 @@ INSERT INTO coursedatetimetouser (CourseID, ID, DateTimeStart, DateTimeEnd) VALU
   (212, 1, '2026-02-15 10:00:00', '2026-02-15 11:30:00'),
   (212, 2, '2026-02-15 10:00:00', '2026-02-15 11:30:00');
 
+-- Total training hours per person per year ("all training", the number goals measure against).
 INSERT INTO users (ID, EducationHours2024, EducationHours2025, EducationHours2026) VALUES
-  (1, 0, 0, 0),
-  (2, 0, 0, 4),
-  (3, 0, 8, 8),
-  (4, 0, 0, 4),
-  (5, 0, 0, 0),
-  (6, 0, 0, 0),
+  (1, 0, 0, 20),   -- Alice (HR) — meets the HR goal
+  (2, 0, 0, 26),   -- Bob (Management) — meets the Management goal
+  (3, 0, 8, 8),    -- Carol (SW) — well short of the SW goal
+  (4, 0, 0, 12),   -- Dave (SW) — short of the SW goal
+  (5, 0, 0, 30),   -- Ada (IT) — meets the IT goal
+  (6, 0, 0, 4),    -- Dana (SW)
   (7, 0, 0, 0),
   (8, 0, 0, 0),
   (9, 0, 0, 0);
@@ -141,18 +145,22 @@ INSERT INTO users (ID, EducationHours2024, EducationHours2025, EducationHours202
 INSERT INTO budget (yearlyBudget2024, yearlyBudget2025, yearlyBudget2026) VALUES (90000, 100000, 120000);
 INSERT INTO hours (yearlyTargetHours2024, yearlyTargetHours2025, yearlyTargetHours2026) VALUES (40, 40, 40);
 
--- Per-discipline yearly goals (hours each employee should complete). Management levels are
--- disciplines too (e.g. "Leadership"). Seeded for 2026; a couple of 2025 rows for history.
+-- Per-discipline yearly goals: total training hours each employee of that discipline should
+-- complete. Keyed to the employee's discipline (management levels are disciplines too).
 INSERT INTO training_goal (Year, Discipline, TargetHours) VALUES
-  (2026, 'Engineering',            16),
-  (2026, 'Data & AI',              8),
-  (2026, 'Cloud & Infra',         12),
-  (2026, 'Security & Compliance',  5),
-  (2026, 'Leadership',             8),
-  (2026, 'Product & Design',       6),
-  (2026, 'Soft Skills',            4),
-  (2025, 'Engineering',           12),
-  (2025, 'Security & Compliance',  5);
+  (2026, 'SW',                 40),
+  (2026, 'HW',                 40),
+  (2026, 'FW',                 40),
+  (2026, 'DevOps',             40),
+  (2026, 'IT',                 30),
+  (2026, 'HR',                 18),
+  (2026, 'Finance',            16),
+  (2026, 'Management',         24),
+  (2026, 'Senior Management',  16),
+  (2026, 'Project Management', 24),
+  (2026, 'General',            10),
+  (2025, 'SW',                 32),
+  (2025, 'Management',         20);
 
 -- ================= Quarterly cycle seed (bidding/registration lifecycle) ======================
 

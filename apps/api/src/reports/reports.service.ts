@@ -59,14 +59,16 @@ export class ReportsService {
 
   /** The signed-in user's personal training summary (hours + required-course checklist + goals). */
   async myTraining(userId: string, year: number): Promise<MyTraining> {
-    const [hours, targetHours, registeredCount, mandatory, attended, goals] = await Promise.all([
-      this.repo.educationHours(userId, year),
-      this.repo.targetHours(year),
-      this.repo.registeredCount(userId, year),
-      this.repo.mandatoryCourses(year),
-      this.repo.attendedCourseHours([Number(userId)], year),
-      this.goals.forYear(year),
-    ]);
+    const [hours, targetHours, registeredCount, mandatory, attended, goals, employee] =
+      await Promise.all([
+        this.repo.educationHours(userId, year),
+        this.repo.targetHours(year),
+        this.repo.registeredCount(userId, year),
+        this.repo.mandatoryCourses(year),
+        this.repo.attendedCourseHours([Number(userId)], year),
+        this.goals.forYear(year),
+        this.employees.findById(userId),
+      ]);
 
     const required = await Promise.all(
       mandatory.map(async (m) => ({
@@ -77,15 +79,8 @@ export class ReportsService {
       })),
     );
 
-    const actualByDiscipline = new Map<string, number>();
-    for (const row of attended) {
-      if (!row.discipline) continue;
-      actualByDiscipline.set(
-        row.discipline,
-        (actualByDiscipline.get(row.discipline) ?? 0) + Number(row.totalHours),
-      );
-    }
-    const byDiscipline = buildDisciplineProgress(actualByDiscipline, goals);
+    const discipline = employee?.discipline ?? 'General';
+    const disciplineGoalHours = goals.find((g) => g.discipline === discipline)?.targetHours ?? 0;
 
     return MyTrainingSchema.parse({
       employeeId: userId,
@@ -94,7 +89,9 @@ export class ReportsService {
       targetHours,
       registeredCount,
       required,
-      byDiscipline,
+      discipline,
+      disciplineGoalHours,
+      byDiscipline: subjectBreakdown(attended),
     });
   }
 
@@ -113,14 +110,16 @@ export class ReportsService {
         : await this.employees.allWorkingSummaries();
     const ids = members.map((m) => Number(m.id));
 
-    const [attended, goals, mandatory] = await Promise.all([
+    const [attended, goals, mandatory, totalHoursById] = await Promise.all([
       this.repo.attendedCourseHours(ids, year),
       this.goals.forYear(year),
       this.repo.mandatoryCourses(year),
+      this.repo.educationHoursForScope(ids, year),
     ]);
     const mandatoryTotal = mandatory.length;
+    const goalByDiscipline = new Map(goals.map((g) => [g.discipline, g.targetHours]));
 
-    // Group attended (person, course) rows by person.
+    // Group attended (person, course) rows by person (drives mandatory/elective + subject split).
     const perPerson = new Map<number, typeof attended>();
     for (const row of attended) {
       const list = perPerson.get(row.sircID) ?? [];
@@ -130,58 +129,58 @@ export class ReportsService {
 
     const memberRows: MemberTraining[] = members.map((m) => {
       const rows = perPerson.get(Number(m.id)) ?? [];
-      let totalHours = 0;
       let mandatoryDone = 0;
       let electiveCount = 0;
-      const actualByDiscipline = new Map<string, number>();
       for (const row of rows) {
-        const h = Number(row.totalHours);
-        totalHours += h;
         if (row.isMandatory) mandatoryDone += 1;
         else electiveCount += 1;
-        if (row.discipline) {
-          actualByDiscipline.set(row.discipline, (actualByDiscipline.get(row.discipline) ?? 0) + h);
-        }
       }
+      const totalHours = totalHoursById.get(Number(m.id)) ?? 0;
+      const disciplineGoalHours = goalByDiscipline.get(m.discipline) ?? 0;
       return {
         employeeId: m.id,
         employeeName: m.fullName,
         department: m.department,
         managerId: m.managerId,
+        discipline: m.discipline,
         totalHours,
+        disciplineGoalHours,
+        metGoal: disciplineGoalHours === 0 || totalHours >= disciplineGoalHours,
         mandatoryDone,
         mandatoryTotal,
         electiveCount,
-        byDiscipline: buildDisciplineProgress(actualByDiscipline, goals),
+        byDiscipline: subjectBreakdown(rows),
       };
     });
 
     const peopleWithElectives = memberRows.filter((m) => m.electiveCount > 0).length;
     const electiveAttendances = memberRows.reduce((sum, m) => sum + m.electiveCount, 0);
 
-    // Aggregate attainment per goal discipline across everyone in scope.
-    const totalPeople = members.length;
-    const disciplines = goals.map((g) => {
-      let sum = 0;
-      let peopleMet = 0;
-      for (const m of memberRows) {
-        const actual = m.byDiscipline.find((d) => d.discipline === g.discipline)?.actualHours ?? 0;
-        sum += actual;
-        if (g.targetHours === 0 || actual >= g.targetHours) peopleMet += 1;
-      }
-      return {
-        discipline: g.discipline,
-        goalHours: g.targetHours,
-        avgHours: totalPeople > 0 ? Math.round((sum / totalPeople) * 10) / 10 : 0,
-        peopleMet,
-        totalPeople,
-      };
-    });
+    // Aggregate attainment grouped by the people's own discipline (their track).
+    const byDiscipline = new Map<string, MemberTraining[]>();
+    for (const m of memberRows) {
+      const list = byDiscipline.get(m.discipline) ?? [];
+      list.push(m);
+      byDiscipline.set(m.discipline, list);
+    }
+    const disciplines = [...byDiscipline.entries()]
+      .map(([discipline, group]) => {
+        const goalHours = goalByDiscipline.get(discipline) ?? 0;
+        const sum = group.reduce((s, m) => s + m.totalHours, 0);
+        return {
+          discipline,
+          goalHours,
+          avgHours: Math.round((sum / group.length) * 10) / 10,
+          peopleMet: group.filter((m) => m.metGoal).length,
+          totalPeople: group.length,
+        };
+      })
+      .sort((a, b) => a.discipline.localeCompare(b.discipline));
 
     return TeamDevelopmentReportSchema.parse({
       year,
       scope,
-      totalPeople,
+      totalPeople: members.length,
       peopleWithElectives,
       electiveAttendances,
       disciplines,
@@ -232,27 +231,27 @@ export class ReportsService {
 }
 
 /**
- * Merge a person's actual per-discipline hours with the yearly goals into a sorted progress list.
- * Includes the union of disciplines that have a goal and disciplines the person has hours in, so
- * both "goal not yet met" and "hours in an ungoaled discipline" are visible.
+ * Informational breakdown of a person's attended-course hours by the *subject* (discipline) of the
+ * course. This is not the goal comparison (goals are measured against the person's own discipline),
+ * so goalHours is 0 here — the UI renders these as plain "hours by subject".
  */
-function buildDisciplineProgress(
-  actualByDiscipline: Map<string, number>,
-  goals: { discipline: string; targetHours: number }[],
+function subjectBreakdown(
+  attended: { discipline: string | null; totalHours: string | number }[],
 ): DisciplineProgress[] {
-  const goalByDiscipline = new Map(goals.map((g) => [g.discipline, g.targetHours]));
-  const disciplines = new Set<string>([...goalByDiscipline.keys(), ...actualByDiscipline.keys()]);
-
-  return [...disciplines]
-    .map((discipline) => {
-      const actualHours = Math.round((actualByDiscipline.get(discipline) ?? 0) * 10) / 10;
-      const goalHours = goalByDiscipline.get(discipline) ?? 0;
-      return {
-        discipline,
-        actualHours,
-        goalHours,
-        metGoal: goalHours === 0 || actualHours >= goalHours,
-      };
-    })
-    .sort((a, b) => b.goalHours - a.goalHours || a.discipline.localeCompare(b.discipline));
+  const byDiscipline = new Map<string, number>();
+  for (const row of attended) {
+    if (!row.discipline) continue;
+    byDiscipline.set(
+      row.discipline,
+      (byDiscipline.get(row.discipline) ?? 0) + Number(row.totalHours),
+    );
+  }
+  return [...byDiscipline.entries()]
+    .map(([discipline, hours]) => ({
+      discipline,
+      actualHours: Math.round(hours * 10) / 10,
+      goalHours: 0,
+      metGoal: true,
+    }))
+    .sort((a, b) => b.actualHours - a.actualHours || a.discipline.localeCompare(b.discipline));
 }

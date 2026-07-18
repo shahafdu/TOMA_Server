@@ -96,6 +96,18 @@ export class ReportsRepository {
     return Number(rows[0]?.v ?? 0);
   }
 
+  /** Total training hours (all training) for a set of people, as an id→hours map. */
+  async educationHoursForScope(ids: number[], year: number): Promise<Map<number, number>> {
+    const map = new Map<number, number>();
+    if (ids.length === 0 || !KNOWN_YEARS.has(year)) return map;
+    const rows = await this.db.query<EducationHoursRow>(
+      `SELECT ID AS id, EducationHours${year} AS hours FROM coma.users WHERE ID IN (?)`,
+      [ids],
+    );
+    for (const r of rows) map.set(Number(r.id), Number(r.hours));
+    return map;
+  }
+
   async targetHours(year: number): Promise<number> {
     if (!KNOWN_YEARS.has(year)) return 0;
     const rows = await this.db.query<ScalarRow>(
@@ -194,4 +206,9 @@ interface AttendedHoursRow extends RowDataPacket {
   isMandatory: number;
   courseId: number;
   totalHours: string | number;
+}
+
+interface EducationHoursRow extends RowDataPacket {
+  id: number;
+  hours: string | number;
 }

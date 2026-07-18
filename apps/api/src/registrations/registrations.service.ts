@@ -286,6 +286,7 @@ export class RegistrationsService {
       title: employee.title,
       managerId: employee.managerId,
       category: employee.category,
+      discipline: employee.discipline,
       status: employee.status,
     };
   }

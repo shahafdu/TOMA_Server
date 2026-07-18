@@ -114,7 +114,7 @@ export function CourseDetailPage() {
                 {c.discipline && (
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography color="text.secondary">Discipline</Typography>
-                    <DisciplineChip discipline={c.discipline} />
+                    <DisciplineChip discipline={c.discipline} subDiscipline={c.subDiscipline} />
                   </Stack>
                 )}
                 {c.totalHours > 0 && <Meta label="Total hours" value={hours(c.totalHours)} />}

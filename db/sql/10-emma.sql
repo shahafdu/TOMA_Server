@@ -17,6 +17,10 @@ CREATE TABLE users (
   teamName            VARCHAR(64)   NULL,
   costCenter          VARCHAR(32)   NULL,
   category            VARCHAR(32)   NULL,
+  -- High-level professional discipline (SW, HW, Management, …). Owned by the Emma app; TOMA
+  -- reads it. NULL / absent → treated as 'General' so TOMA stays backwards-compatible with an
+  -- Emma instance that has not yet added this column.
+  discipline          VARCHAR(64)   NULL,
   status              VARCHAR(16)   NOT NULL DEFAULT 'working',
   startDate           DATETIME      NULL,
   startDate2          DATETIME      NULL,

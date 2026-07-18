@@ -158,6 +158,9 @@
               "null"
             ]
           },
+          "discipline": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -198,6 +201,7 @@
           "title",
           "rank",
           "category",
+          "discipline",
           "status",
           "startDate",
           "endDate",
@@ -246,6 +250,9 @@
               "null"
             ]
           },
+          "discipline": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -263,6 +270,7 @@
           "title",
           "managerId",
           "category",
+          "discipline",
           "status"
         ]
       },
@@ -356,6 +364,12 @@
             ]
           },
           "discipline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subDiscipline": {
             "type": [
               "string",
               "null"
@@ -517,6 +531,7 @@
           "mailText",
           "type",
           "discipline",
+          "subDiscipline",
           "status",
           "deliveryType",
           "platform",
@@ -1208,6 +1223,13 @@
               ]
             }
           },
+          "discipline": {
+            "type": "string"
+          },
+          "disciplineGoalHours": {
+            "type": "number",
+            "minimum": 0
+          },
           "byDiscipline": {
             "type": "array",
             "items": {
@@ -1244,6 +1266,8 @@
           "targetHours",
           "registeredCount",
           "required",
+          "discipline",
+          "disciplineGoalHours",
           "byDiscipline"
         ]
       },
@@ -1525,9 +1549,19 @@
                   ],
                   "minLength": 1
                 },
+                "discipline": {
+                  "type": "string"
+                },
                 "totalHours": {
                   "type": "number",
                   "minimum": 0
+                },
+                "disciplineGoalHours": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "metGoal": {
+                  "type": "boolean"
                 },
                 "mandatoryDone": {
                   "type": "integer",
@@ -1575,7 +1609,10 @@
                 "employeeName",
                 "department",
                 "managerId",
+                "discipline",
                 "totalHours",
+                "disciplineGoalHours",
+                "metGoal",
                 "mandatoryDone",
                 "mandatoryTotal",
                 "electiveCount",
@@ -1835,6 +1872,9 @@
                         "null"
                       ]
                     },
+                    "discipline": {
+                      "type": "string"
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -1852,6 +1892,7 @@
                     "title",
                     "managerId",
                     "category",
+                    "discipline",
                     "status"
                   ]
                 },
@@ -2362,6 +2403,9 @@
                     "null"
                   ]
                 },
+                "discipline": {
+                  "type": "string"
+                },
                 "status": {
                   "type": "string",
                   "enum": [
@@ -2379,6 +2423,7 @@
                 "title",
                 "managerId",
                 "category",
+                "discipline",
                 "status"
               ]
             }
@@ -2458,6 +2503,12 @@
                   ]
                 },
                 "discipline": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "subDiscipline": {
                   "type": [
                     "string",
                     "null"
@@ -2619,6 +2670,7 @@
                 "mailText",
                 "type",
                 "discipline",
+                "subDiscipline",
                 "status",
                 "deliveryType",
                 "platform",
@@ -2840,6 +2892,9 @@
                         "null"
                       ]
                     },
+                    "discipline": {
+                      "type": "string"
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -2880,6 +2935,7 @@
                     "title",
                     "rank",
                     "category",
+                    "discipline",
                     "status",
                     "startDate",
                     "endDate",
@@ -3131,6 +3187,12 @@
                       "null"
                     ]
                   },
+                  "subDiscipline": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
                   "totalHours": {
                     "type": "number",
                     "minimum": 0,
@@ -3291,6 +3353,12 @@
                         "null"
                       ]
                     },
+                    "subDiscipline": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -3447,6 +3515,7 @@
                     "mailText",
                     "type",
                     "discipline",
+                    "subDiscipline",
                     "status",
                     "deliveryType",
                     "platform",
@@ -3565,6 +3634,12 @@
                         "null"
                       ]
                     },
+                    "subDiscipline": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -3721,6 +3796,7 @@
                     "mailText",
                     "type",
                     "discipline",
+                    "subDiscipline",
                     "status",
                     "deliveryType",
                     "platform",
@@ -3816,6 +3892,12 @@
                     ]
                   },
                   "discipline": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "subDiscipline": {
                     "type": [
                       "string",
                       "null"
@@ -3986,6 +4068,12 @@
                         "null"
                       ]
                     },
+                    "subDiscipline": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -4142,6 +4230,7 @@
                     "mailText",
                     "type",
                     "discipline",
+                    "subDiscipline",
                     "status",
                     "deliveryType",
                     "platform",
@@ -4418,6 +4507,9 @@
                                   "null"
                                 ]
                               },
+                              "discipline": {
+                                "type": "string"
+                              },
                               "status": {
                                 "type": "string",
                                 "enum": [
@@ -4435,6 +4527,7 @@
                               "title",
                               "managerId",
                               "category",
+                              "discipline",
                               "status"
                             ]
                           },
@@ -6599,9 +6692,19 @@
                             ],
                             "minLength": 1
                           },
+                          "discipline": {
+                            "type": "string"
+                          },
                           "totalHours": {
                             "type": "number",
                             "minimum": 0
+                          },
+                          "disciplineGoalHours": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "metGoal": {
+                            "type": "boolean"
                           },
                           "mandatoryDone": {
                             "type": "integer",
@@ -6649,7 +6752,10 @@
                           "employeeName",
                           "department",
                           "managerId",
+                          "discipline",
                           "totalHours",
+                          "disciplineGoalHours",
+                          "metGoal",
                           "mandatoryDone",
                           "mandatoryTotal",
                           "electiveCount",
@@ -6760,6 +6866,13 @@
                         ]
                       }
                     },
+                    "discipline": {
+                      "type": "string"
+                    },
+                    "disciplineGoalHours": {
+                      "type": "number",
+                      "minimum": 0
+                    },
                     "byDiscipline": {
                       "type": "array",
                       "items": {
@@ -6796,6 +6909,8 @@
                     "targetHours",
                     "registeredCount",
                     "required",
+                    "discipline",
+                    "disciplineGoalHours",
                     "byDiscipline"
                   ]
                 }
